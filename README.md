@@ -1,0 +1,16 @@
+# Concentré 🍅
+
+Le pomodoro en équipe : reste concentré·e, fais pousser ta plante, récolte des tomates et grimpe au classement avec tes amis.
+
+- **Focus** : sessions de 25, 45 ou 60 minutes. En mode strict, ta plante fane si tu quittes la page.
+- **Tomates** : la monnaie du jeu. Tu gagnes 1 tomate pour 25 à 59 minutes, 2 tomates à partir de 60 minutes, et +1 pour une session de groupe.
+- **Club** : qui est en focus en ce moment, défi de la semaine, classement, podium et fil d'activité avec kudos.
+- **Groupes** : lance un pomodoro à plusieurs, avec un bonus d'XP et de tomates.
+- **Profil** : niveaux, badges, trophées, objectif quotidien et catégories.
+
+## Technique
+- Site statique : `index.html`, `cloud.js`, `supabase-config.js`. Pas de build.
+- Supabase (offre gratuite) : comptes (e-mail + mot de passe), base Postgres et temps réel. Le schéma et les règles de sécurité sont dans `supabase-schema.sql`.
+- Hébergement : Vercel (offre Hobby), déployé automatiquement à chaque modification du dépôt GitHub.
+
+L'URL et la clé « anon » dans `supabase-config.js` sont publiques par nature. Les données sont protégées par les règles RLS de la base.
