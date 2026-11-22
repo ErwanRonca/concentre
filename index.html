@@ -272,6 +272,7 @@ button:disabled{cursor:not-allowed}
       <a href="#club" data-v="club">Club</a>
       <a href="#groupes" data-v="groupes">Groupes</a>
       <a href="#profil" data-v="profil">Profil</a>
+      <a href="#retours" data-v="retours">Retours</a>
     </nav>
     <button class="mechip" id="me-chip" aria-label="Mon profil"></button>
   </header>
@@ -387,6 +388,51 @@ button:disabled{cursor:not-allowed}
   <section class="view" id="v-profil">
     <div class="side" id="profile"></div>
   </section>
+
+  <!-- RETOURS -->
+  <section class="view" id="v-retours">
+    <div class="club-grid">
+      <div class="side">
+        <form class="card" id="fb-form" novalidate>
+          <div>
+            <div class="eyebrow">Version test</div>
+            <h2>Aide-nous à améliorer Concentré.</h2>
+          </div>
+          <p class="muted small" style="margin:0">Un bug, une idée de fonctionnalité, un truc qui t'agace ou qui te motive : tout est bon à prendre. Ton retour est visible par les autres testeurs, qui peuvent l'appuyer d'un +1.</p>
+          <div class="seg fb-kinds" role="group" aria-label="Type de retour" id="fb-kinds">
+            <button type="button" data-kind="bug">🐞 Bug</button>
+            <button type="button" data-kind="idee">💡 Idée</button>
+            <button type="button" data-kind="remarque">💬 Remarque</button>
+          </div>
+          <label class="sr-only" for="fb-msg">Ton retour</label>
+          <textarea class="field fb-text" id="fb-msg" maxlength="2000" rows="5"></textarea>
+          <div class="fb-send">
+            <span class="muted small" id="fb-count">0 / 2000</span>
+            <button class="btn green" type="submit" id="fb-submit">Envoyer</button>
+          </div>
+          <p class="muted small" style="margin:0" id="fb-note"></p>
+        </form>
+        <div class="card" id="fb-admin" hidden></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h3>Tous les retours</h3>
+          <div class="seg" role="group" aria-label="Tri" id="fb-sort">
+            <button type="button" data-sort="recent">Récents</button>
+            <button type="button" data-sort="top">Populaires</button>
+          </div>
+        </div>
+        <div class="seg" role="group" aria-label="Filtrer" id="fb-filter">
+          <button type="button" data-f="all">Tous</button>
+          <button type="button" data-f="bug">🐞 Bugs</button>
+          <button type="button" data-f="idee">💡 Idées</button>
+          <button type="button" data-f="remarque">💬 Remarques</button>
+          <button type="button" data-f="open">À traiter</button>
+        </div>
+        <div id="fb-list"></div>
+      </div>
+    </div>
+  </section>
 </div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 
@@ -410,6 +456,40 @@ button:disabled{cursor:not-allowed}
 .login-field input{display:block;width:100%;box-sizing:border-box;margin-top:4px;font:inherit;font-size:1rem;font-weight:400;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 .login-field input:focus{outline:2px solid var(--leaf);outline-offset:1px}
 .login-main{margin-top:18px!important}
+
+/* Retours */
+#fb-admin[hidden]{display:none}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.fb-kinds{align-self:flex-start}
+.fb-kinds button,#fb-filter button,#fb-sort button{font-size:.85rem;padding:6px 12px}
+.fb-text{resize:vertical;min-height:110px;line-height:1.45}
+.fb-send{display:flex;align-items:center;justify-content:space-between;gap:10px}
+#fb-list{display:flex;flex-direction:column}
+.fb{display:flex;flex-direction:column;gap:8px;padding:14px 0;border-top:1px solid var(--line)}
+.fb:first-child{border-top:0;padding-top:4px}
+.fb-top{display:flex;align-items:center;gap:6px 8px;flex-wrap:wrap}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);white-space:nowrap}
+.tag.k-bug{color:var(--tomato);border-color:currentColor}
+.tag.k-idee{color:var(--c-lecture);border-color:currentColor}
+.tag.k-remarque{color:var(--c-etudes);border-color:currentColor}
+.tag.s-nouveau{color:var(--muted)}
+.tag.s-etude{color:var(--c-travail)}
+.tag.s-prevu{color:var(--c-lecture)}
+.tag.s-fait{background:var(--leaf);border-color:var(--leaf);color:var(--bg)}
+.tag.s-refuse{color:var(--muted);text-decoration:line-through}
+.fb-msg{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.45}
+.fb-reply{border-left:3px solid var(--leaf);background:var(--surface-2);border-radius:0 8px 8px 0;padding:8px 12px;font-size:.9rem;white-space:pre-wrap;overflow-wrap:anywhere}
+.fb-reply b{display:block;font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--leaf);margin-bottom:2px}
+.fb-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.vote[aria-pressed="true"]{border-color:var(--leaf);color:var(--leaf);box-shadow:inset 0 0 0 1px var(--leaf)}
+.fb-admin-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;width:100%;padding-top:4px}
+.fb-admin-row select,.fb-admin-row input{border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:8px;padding:6px 10px;font:inherit;font-size:.85rem}
+.fb-admin-row input{flex:1 1 180px;min-width:0}
+.fb-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px}
+.fb-stats div{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px}
+.fb-stats b{display:block;font-family:var(--f-display);font-size:1.5rem;font-weight:800;line-height:1}
+.fb-stats span{font-size:.78rem;color:var(--muted)}
+@media (max-width:620px){.nav a{padding:6px 8px;font-size:.82rem}}
 .login-err{color:var(--tomato)!important;margin:12px 0 0!important;min-height:1em}
 .account-btn{display:block;margin:24px auto calc(24px + env(safe-area-inset-bottom,0px));font:inherit;font-size:.8rem;background:var(--surface);color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer}
 </style>
@@ -912,9 +992,82 @@ function renderData(){
 }
 function renderAll(){renderBanner();renderCats();renderTimer(true);renderData();}
 
+/* ---------- retours (bugs, idées, remarques) ---------- */
+const APP_VERSION="test-1";
+const FB_KIND={bug:"🐞 Bug",idee:"💡 Idée",remarque:"💬 Remarque"};
+const FB_STATUS={nouveau:"Nouveau",etude:"À l'étude",prevu:"Prévu",fait:"Fait",refuse:"Pas retenu"};
+const FB_HINT={bug:"Qu'est-ce que tu faisais, et qu'est-ce qui s'est passé ? (ex. « J'ai lancé une session de groupe sur mon téléphone, le minuteur s'est bloqué à 12:00 »)",
+  idee:"Quelle fonctionnalité aimerais-tu, et pourquoi ? (ex. « Pouvoir choisir une durée de pause »)",
+  remarque:"Ce qui te plaît, ce qui te gêne, ce qui n'est pas clair…"};
+const FB={api:null,items:[],admin:false,kind:"bug",filter:"all",sort:"recent",loaded:false,error:"",busy:false,confirmDel:null};
+let prevView="focus";
+async function loadFeedback(){if(!FB.api)return;try{FB.items=await FB.api.list();FB.error="";}catch(e){FB.error=e&&e.code==="PGRST205"||/feedback/.test(e&&e.message||"")?"setup":"load";}FB.loaded=true;renderFeedback();}
+function fbContext(){return{version:APP_VERSION,vue:prevView,ecran:innerWidth+"x"+innerHeight,navigateur:navigator.userAgent,minuteur:T.phase,niveau:level(myDoc.xp).L,pomodoros:myDoc.totalPomos};}
+async function sendFeedback(){
+  const msg=$("fb-msg").value.trim();
+  if(!FB.api){toast("Connecte-toi pour envoyer un retour.");return;}
+  if(msg.length<3){$("fb-msg").focus();toast("Écris quelques mots avant d'envoyer.");return;}
+  FB.busy=true;renderFeedbackForm();
+  try{await FB.api.add({kind:FB.kind,message:msg,context:fbContext()});$("fb-msg").value="";toast("Merci ! Ton retour est bien arrivé.");await loadFeedback();}
+  catch(e){toast("Envoi impossible pour le moment ("+(e&&e.code||"erreur")+"). Réessaie dans un instant.");}
+  FB.busy=false;renderFeedbackForm();
+}
+async function fbVote(it){const on=!it.votes.includes(S.myId);it.votes=on?[...it.votes,S.myId]:it.votes.filter(x=>x!==S.myId);renderFeedback();try{await FB.api.vote(it.id,on);}catch(e){toast("Impossible d'enregistrer ton +1.");}loadFeedback();}
+async function fbSave(it,status,reply){try{await FB.api.setStatus(it.id,{status,reply});toast("Retour mis à jour.");}catch(e){toast("Mise à jour impossible ("+(e&&e.code||"erreur")+").");}loadFeedback();}
+async function fbDelete(it){if(FB.confirmDel!==it.id){FB.confirmDel=it.id;renderFeedback();setTimeout(()=>{if(FB.confirmDel===it.id){FB.confirmDel=null;renderFeedback();}},4000);return;}
+  FB.confirmDel=null;try{await FB.api.remove(it.id);toast("Retour supprimé.");}catch(e){toast("Suppression impossible.");}loadFeedback();}
+function renderFeedbackForm(){
+  document.querySelectorAll("#fb-kinds button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.kind===FB.kind)));
+  $("fb-msg").placeholder=FB_HINT[FB.kind];$("fb-count").textContent=$("fb-msg").value.length+" / 2000";
+  const can=!!FB.api;$("fb-msg").disabled=!can||FB.busy;$("fb-submit").disabled=!can||FB.busy;$("fb-submit").textContent=FB.busy?"Envoi…":"Envoyer";
+  $("fb-note").textContent=can?"On joint automatiquement à ton retour la version de l'app, ton type d'écran et ton navigateur, pour aider à reproduire les bugs.":"Connecte-toi (bouton en bas de page) pour envoyer un retour.";
+}
+function renderFeedbackAdmin(){
+  const box=$("fb-admin");box.hidden=!FB.admin;if(!FB.admin)return;
+  const c={};for(const it of FB.items)c[it.status]=(c[it.status]||0)+1;
+  box.replaceChildren(el("div",{class:"card-head"},el("h3",{text:"Espace admin"}),el("span",{class:"muted small",text:FB.items.length+" retours"})),
+    el("div",{class:"fb-stats"},...Object.keys(FB_STATUS).map(k=>el("div",{},el("b",{class:"num",text:String(c[k]||0)}),el("span",{text:FB_STATUS[k]})))),
+    el("p",{class:"muted small",style:"margin:0",text:"Change le statut et réponds directement sous chaque retour : tes réponses sont visibles par tous les testeurs. Tu retrouves aussi tout dans Supabase → Table Editor → feedback (exportable en CSV)."}));
+}
+function fbItem(it){
+  const mine=it.user_id===S.myId,voted=it.votes.includes(S.myId);
+  const top=el("div",{class:"fb-top"},el("span",{class:"tag k-"+it.kind,text:FB_KIND[it.kind]||it.kind}),el("span",{class:"tag s-"+it.status,text:FB_STATUS[it.status]||it.status}),
+    el("span",{class:"muted small",text:(mine?"Toi":(it.pseudo||"Un testeur"))+" · "+ago(it.ts)}));
+  const acts=el("div",{class:"fb-actions"},
+    el("button",{class:"btn sm vote",type:"button","aria-pressed":String(voted),title:voted?"Retirer mon +1":"Moi aussi !",onclick:()=>fbVote(it)},"+1 · "+it.votes.length));
+  if(mine||FB.admin)acts.append(el("button",{class:"btn sm",type:"button",onclick:()=>fbDelete(it)},FB.confirmDel===it.id?"Confirmer la suppression":"Supprimer"));
+  const out=el("article",{class:"fb"},top,el("p",{class:"fb-msg",text:it.message}));
+  if(it.reply)out.append(el("div",{class:"fb-reply"},el("b",{text:"Réponse"}),it.reply));
+  out.append(acts);
+  if(FB.admin){
+    const sel=el("select",{"aria-label":"Statut"},...Object.entries(FB_STATUS).map(([k,v])=>el("option",{value:k,selected:k===it.status},v)));
+    const rep=el("input",{type:"text",maxlength:"1000",placeholder:"Réponse visible par tous (optionnel)",value:it.reply||""});
+    out.append(el("form",{class:"fb-admin-row",onsubmit:e=>{e.preventDefault();fbSave(it,sel.value,rep.value.trim());}},sel,rep,el("button",{class:"btn sm green",type:"submit"},"Enregistrer")));
+  }
+  return out;
+}
+function renderFeedback(){
+  renderFeedbackForm();renderFeedbackAdmin();
+  document.querySelectorAll("#fb-filter button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.f===FB.filter)));
+  document.querySelectorAll("#fb-sort button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.sort===FB.sort)));
+  const list=$("fb-list");
+  if(!FB.api){list.replaceChildren(el("p",{class:"empty",text:"Les retours ont besoin du club en ligne. Connecte-toi pour les lire et en envoyer."}));return;}
+  if(FB.error==="setup"){list.replaceChildren(el("p",{class:"empty",text:"La rubrique Retours n'est pas encore activée dans la base (script supabase-retours.sql à lancer dans Supabase)."}));return;}
+  if(FB.error){list.replaceChildren(el("p",{class:"empty",text:"Impossible de charger les retours pour le moment."}));return;}
+  if(!FB.loaded){list.replaceChildren(el("p",{class:"empty",text:"Chargement…"}));return;}
+  let items=FB.items.filter(it=>FB.filter==="all"||(FB.filter==="open"?["nouveau","etude","prevu"].includes(it.status):it.kind===FB.filter));
+  if(FB.sort==="top")items=[...items].sort((a,b)=>b.votes.length-a.votes.length||b.ts-a.ts);
+  list.replaceChildren(...(items.length?items.map(fbItem):[el("p",{class:"empty",text:FB.items.length?"Aucun retour dans cette catégorie.":"Aucun retour pour l'instant. Sois le premier ou la première !"})]));
+}
+document.querySelectorAll("#fb-kinds button").forEach(b=>b.addEventListener("click",()=>{FB.kind=b.dataset.kind;renderFeedbackForm();$("fb-msg").focus();}));
+document.querySelectorAll("#fb-filter button").forEach(b=>b.addEventListener("click",()=>{FB.filter=b.dataset.f;renderFeedback();}));
+document.querySelectorAll("#fb-sort button").forEach(b=>b.addEventListener("click",()=>{FB.sort=b.dataset.sort;renderFeedback();}));
+$("fb-msg").addEventListener("input",()=>{$("fb-count").textContent=$("fb-msg").value.length+" / 2000";});
+$("fb-form").addEventListener("submit",e=>{e.preventDefault();sendFeedback();});
+
 /* ---------- routing ---------- */
-let view="focus";const VIEWS=["focus","club","groupes","profil"];
-function route(){const h=(location.hash||"").slice(1);view=VIEWS.includes(h)?h:"focus";
+let view="focus";const VIEWS=["focus","club","groupes","profil","retours"];
+function route(){const h=(location.hash||"").slice(1);if(view!=="retours")prevView=view;view=VIEWS.includes(h)?h:"focus";if(view==="retours")renderFeedback();
   for(const v of VIEWS)$("v-"+v).classList.toggle("on",v===view);
   document.querySelectorAll(".nav a").forEach(a=>a.setAttribute("aria-current",a.dataset.v===view?"page":"false"));
   if(view==="profil")renderProfile();if(view==="groupes")renderGroups();if(view==="club")renderData();}
@@ -937,8 +1090,10 @@ async function boot(){
   setInterval(tick,250);
   setInterval(()=>{renderLive();if(document.querySelector("#gsessions .gs")||activeSessions().length)renderGSessions();if(view==="groupes"&&activeSessions().length)renderGroups();},1000);
   const use=n=>(window.claude&&typeof window.claude.use==="function")?Promise.resolve(window.claude.use(n)).catch(()=>null):Promise.resolve(null);
-  const [db,user]=await Promise.all([use("db"),use("user")]);
+  const [db,user,fb]=await Promise.all([use("db"),use("user"),use("feedback")]);
   S.user=user;
+  if(fb){FB.api=fb;fb.isAdmin().then(a=>{FB.admin=a;renderFeedback();});fb.onChange(loadFeedback);loadFeedback();}
+  renderFeedback();
   if(user){try{S.me=await user.me();S.myId=S.me.id;}catch(e){}}
   if(db&&S.myId){
     S.db=db;S.cloud=true;

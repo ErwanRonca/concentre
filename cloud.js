@@ -98,6 +98,49 @@ function makeUser(sb, u) {
   };
 }
 
+/* ---------- retours (bugs, idées, remarques) : tables feedback / feedback_votes, voir supabase-retours.sql ---------- */
+function makeFeedback(sb, me) {
+  const check = r => { if (r.error) throw mapErr(r.error); return r.data; };
+  return {
+    async list() {
+      const [f, v] = await Promise.all([
+        sb.from("feedback").select("*").order("created_at", { ascending: false }).limit(500),
+        sb.from("feedback_votes").select("feedback_id,user_id")
+      ]);
+      const rows = check(f), votes = check(v);
+      const by = {};
+      votes.forEach(x => { (by[x.feedback_id] = by[x.feedback_id] || []).push(x.user_id); });
+      return rows.map(r => ({ ...r, votes: by[r.id] || [], ts: Date.parse(r.created_at) || 0 }));
+    },
+    async add({ kind, message, context }) {
+      check(await sb.from("feedback").insert({ kind, message, context, pseudo: me.name }));
+    },
+    async vote(id, on) {
+      check(on
+        ? await sb.from("feedback_votes").insert({ feedback_id: id })
+        : await sb.from("feedback_votes").delete().eq("feedback_id", id).eq("user_id", me.id));
+    },
+    async setStatus(id, patch) {
+      check(await sb.from("feedback").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id));
+    },
+    async remove(id) {
+      check(await sb.from("feedback").delete().eq("id", id));
+    },
+    async isAdmin() {
+      const { data, error } = await sb.rpc("is_admin");
+      return !error && data === true;
+    },
+    onChange(cb) {
+      let t;
+      const ping = () => { clearTimeout(t); t = setTimeout(cb, 300); };
+      sb.channel("feedback-" + Math.random().toString(36).slice(2))
+        .on("postgres_changes", { event: "*", schema: "public", table: "feedback" }, ping)
+        .on("postgres_changes", { event: "*", schema: "public", table: "feedback_votes" }, ping)
+        .subscribe();
+    }
+  };
+}
+
 /* ---------- écran de connexion ---------- */
 const AUTH_ERRORS = {
   "Invalid login credentials": "E-mail ou mot de passe incorrect.",
@@ -186,7 +229,8 @@ async function start() {
   }
   try { localStorage.removeItem(LOCAL_KEY); } catch (e) {}
   accountButton("Déconnexion (" + displayName(u) + ")", async () => { await sb.auth.signOut(); try { localStorage.setItem(LOCAL_KEY, "1"); } catch (e) {} location.reload(); });
-  return { db: makeDb(sb), user: makeUser(sb, u) };
+  const user = makeUser(sb, u);
+  return { db: makeDb(sb), user, feedback: makeFeedback(sb, { id: u.id, name: displayName(u) }) };
 }
 
 start().then(api => window.__pousseCloudReady(api), e => { console.error(e); window.__pousseCloudReady({ db: null, user: null }); });
