@@ -438,6 +438,21 @@ button:disabled{cursor:not-allowed}
         </label>
       </div>
       <div class="card">
+        <h3>Pause</h3>
+        <div class="set-row">
+          <div><b>Durée de la pause</b><span class="muted small">minutes, après chaque pomodoro</span></div>
+          <div class="presets" role="group" aria-label="Durée de la pause" id="set-break">
+            <button class="preset" type="button" data-break="2">2</button>
+            <button class="preset" type="button" data-break="5">5</button>
+            <button class="preset" type="button" data-break="10">10</button>
+          </div>
+        </div>
+        <label class="set-row switch-row">
+          <span><b>Lancer la pause automatiquement</b><span class="muted small">Le décompte de pause démarre dès que le pomodoro est fini</span></span>
+          <input type="checkbox" class="switch" id="autobreak">
+        </label>
+      </div>
+      <div class="card">
         <h3>Compte</h3>
         <div class="set-row">
           <div><b id="set-name">Mode local</b><a class="link" href="#retours">Donner mon avis sur l'app</a></div>
@@ -751,7 +766,7 @@ function miniPlant(ok,title){const s=svg(`<svg viewBox="20 30 160 185" role="img
 
 /* ---------- timer ---------- */
 const GRACE=10000;
-let cfg=Object.assign({focus:25,strict:true,cat:"travail"},store.get("pousse.cfg",{}));
+let cfg=Object.assign({focus:25,strict:true,cat:"travail",breakMin:5,autoBreak:true},store.get("pousse.cfg",{}));
 if(![25,45,60].includes(cfg.focus))cfg.focus=25;
 let T=store.get("pousse.timer",null)||{phase:"idle"};
 const saveT=()=>store.set("pousse.timer",T);
@@ -776,15 +791,19 @@ function startFocus(){
 }
 function participants(){const r=T.gid&&S.groups[T.gid];return r?memberIdsOf(r):[];}
 function completeFocus(){
-  const gid=T.gid;const n=gid?Math.max(1,T.n||participants().length):1;
+  const gid=T.gid,end=T.endAt;const n=gid?Math.max(1,T.n||participants().length):1;
   const s=recordSession({ok:true,min:T.min,label:T.label,cat:T.cat,gid,gname:T.gname,n});
-  T={phase:"done",last:s,breakMin:T.min>=45?10:5};saveT();wake(false);chime();renderTimer(true);
+  T={phase:"done",last:s};saveT();wake(false);chime();
+  if(cfg.autoBreak!==false)startBreak(end);else renderTimer(true);
   if(gid)closeRoom(gid);
 }
 /* Passage salle d'attente → focus : on fige le nombre de participants (personne ne peut plus entrer). */
 function lobbyToFocus(now){const r=S.groups[T.gid];if(r){T.n=memberIdsOf(r).length;T.gname=r.name||"";}T.phase="focus";T.beat=now;T.hiddenAt=0;}
 function wither(reason){const m=Math.min(T.min,(Date.now()-T.startAt)/60000);const s=recordSession({ok:false,min:m,label:T.label,cat:T.cat,gid:T.gid,gname:T.gname});T={phase:"withered",last:s,reason};saveT();wake(false);renderTimer(true);}
-function startBreak(){ensureAudio();const now=Date.now(),m=T.breakMin||5;T={phase:"break",startAt:now,endAt:now+m*60000,min:m};saveT();renderTimer(true);}
+/* Pause après un pomodoro : 2, 5 ou 10 min selon les réglages (5 par défaut), quelle que soit la durée du focus. */
+const breakMin=()=>[2,5,10].includes(+cfg.breakMin)?+cfg.breakMin:5;
+/* from = fin du pomodoro (si la page était fermée, la pause part de là ; déjà écoulée, on ne la lance pas). */
+function startBreak(from){ensureAudio();const now=Date.now(),m=breakMin();const start=typeof from==="number"&&from<now?from:now;if(start+m*60000<=now){renderTimer(true);return;}T={phase:"break",startAt:start,endAt:start+m*60000,min:m,last:T.last};saveT();renderTimer(true);}
 function toIdle(){T={phase:"idle"};saveT();renderTimer(true);}
 
 function tick(){
@@ -820,7 +839,7 @@ function renderTimer(full){
   if(!full)return;
   const ph=$("phase"),sub=$("phase-sub"),acts=$("actions");acts.replaceChildren();
   const locked=busy()||T.phase==="break";
-  document.querySelectorAll(".preset").forEach(b=>{b.setAttribute("aria-pressed",String(+b.dataset.min===cfg.focus));b.disabled=locked;});
+  document.querySelectorAll(".preset[data-min]").forEach(b=>{b.setAttribute("aria-pressed",String(+b.dataset.min===cfg.focus));b.disabled=locked;});
   document.querySelectorAll("#cats .chip").forEach(b=>{b.setAttribute("aria-pressed",String(b.dataset.cat===cfg.cat));b.disabled=busy();});
   $("task-label").disabled=busy();
   if(T.phase==="idle"){ph.textContent="Prêt à planter";const est=baseTomatoes(cfg.focus);
@@ -836,10 +855,10 @@ function renderTimer(full){
     else acts.append(el("button",{class:"btn",onclick:()=>{confirmAbandon=true;clearTimeout(confirmTimer);confirmTimer=setTimeout(()=>{confirmAbandon=false;renderTimer(true);},5000);renderTimer(true);},text:"Abandonner"}));{const sb=soundButton();if(sb&&!confirmAbandon)acts.append(sb);}}
   else if(T.phase==="done"){const l=T.last||{};if(l.tom>0)ph.replaceChildren(tomatoIcon(18),"+"+plural(l.tom,"tomate")+" · +"+(l.xp||0)+" XP");else ph.textContent="Session terminée · +"+(l.xp||0)+" XP";
     sub.textContent=(l.tomBase===0?"Pas de tomate en dessous de 25 min. ":"")+(l.tomGroup?"Dont +1 tomate de groupe. ":"")+(l.n>1?("Bonus de groupe à "+l.n+" : +"+Math.round(Math.min(.5,.1*(l.n-1))*100)+" % d'XP."):"Ta plante rejoint ton jardin et le fil de la communauté.");
-    acts.append(el("button",{class:"btn primary",onclick:startBreak,text:"Pause "+(T.breakMin||5)+" min"}),el("button",{class:"btn",onclick:toIdle,text:"Nouvelle session"}));}
+    acts.append(el("button",{class:"btn primary",onclick:startBreak,text:"Pause "+breakMin()+" min"}),el("button",{class:"btn",onclick:toIdle,text:"Nouvelle session"}));}
   else if(T.phase==="withered"){ph.textContent="Ta plante a fané";sub.textContent=T.reason||"";
     acts.append(el("button",{class:"btn primary",onclick:toIdle,text:"Replanter"}));}
-  else if(T.phase==="break"){ph.textContent="Pause";sub.textContent="Lève-toi, bois un verre d'eau.";
+  else if(T.phase==="break"){const l=T.last;ph.textContent="Pause · "+T.min+" min";sub.textContent=(l&&l.ok?"Bien joué : +"+(l.tom?plural(l.tom,"tomate")+" · +":"")+(l.xp||0)+" XP. ":"")+"Lève-toi, bois un verre d'eau.";
     acts.append(el("button",{class:"btn",onclick:toIdle,text:"Passer la pause"}));}
   renderWith();
 }
@@ -1228,7 +1247,8 @@ function applyTheme(t){
 function renderSettings(){
   const t=themeChoice();
   document.querySelectorAll("#set-theme button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.themeChoice===t)));
-  $("strict").checked=!!cfg.strict;$("sound").checked=cfg.sound!==false;
+  $("strict").checked=!!cfg.strict;$("sound").checked=cfg.sound!==false;$("autobreak").checked=cfg.autoBreak!==false;
+  document.querySelectorAll("#set-break button").forEach(b=>b.setAttribute("aria-pressed",String(+b.dataset.break===breakMin())));
   $("goal-val").textContent=String(myDoc.goal);
   const acc=document.querySelector(".account-btn");
   $("set-name").textContent=S.me&&S.me.name?S.me.name:"Mode local (sans compte)";
@@ -1239,6 +1259,8 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{if(the
 $("goal-minus").addEventListener("click",()=>setGoal(myDoc.goal-1));
 $("goal-plus").addEventListener("click",()=>setGoal(myDoc.goal+1));
 $("sound").addEventListener("change",e=>{cfg.sound=e.target.checked;saveCfg();if(cfg.sound){ensureAudio();chime(true);}});
+$("autobreak").addEventListener("change",e=>{cfg.autoBreak=e.target.checked;saveCfg();});
+document.querySelectorAll("#set-break button").forEach(b=>b.addEventListener("click",()=>{cfg.breakMin=+b.dataset.break;saveCfg();renderSettings();renderTimer(true);}));
 $("set-account").addEventListener("click",()=>{const acc=document.querySelector(".account-btn");if(acc)acc.click();});
 
 let view="focus";const VIEWS=["focus","club","groupes","profil","retours","reglages"];
@@ -1249,7 +1271,7 @@ function route(){const h=(location.hash||"").slice(1);if(view!=="retours")prevVi
 window.addEventListener("hashchange",()=>{if(captureInvite()){if(canCloud())processInvite();else toast("Connecte-toi dans Réglages pour rejoindre cette session de groupe.");}route();});
 
 /* ---------- events ---------- */
-document.querySelectorAll(".preset").forEach(b=>b.addEventListener("click",()=>{cfg.focus=+b.dataset.min;saveCfg();lastPlantKey="";renderTimer(true);renderGSessions();if(view==="groupes")renderGroups();}));
+document.querySelectorAll(".preset[data-min]").forEach(b=>b.addEventListener("click",()=>{cfg.focus=+b.dataset.min;saveCfg();lastPlantKey="";renderTimer(true);renderGSessions();if(view==="groupes")renderGroups();}));
 document.querySelector('.nav a[data-v="profil"]').addEventListener("click",()=>{S.profileId=null;if(view==="profil")renderProfile();});
 $("me-chip").addEventListener("click",()=>openProfile(meKey()));
 $("strict").checked=!!cfg.strict;$("strict").addEventListener("change",e=>{cfg.strict=e.target.checked;saveCfg();renderTimer(true);});

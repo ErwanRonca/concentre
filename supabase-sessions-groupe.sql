@@ -31,5 +31,15 @@ drop policy if exists "suppression salle" on public.docs;
 create policy "suppression salle" on public.docs
   for delete to authenticated using (coll = 'groups' and public.is_group_member(id));
 
+-- Lecture : une salle est visible par ses membres, d'après la salle elle-même (et non via is_group_member,
+-- qui ne voit pas encore une salle en cours de création : sinon la création échoue).
+drop policy if exists "lecture membres" on public.docs;
+create policy "lecture membres" on public.docs
+  for select to authenticated using (
+    coll not in ('groups', 'gsessions')
+    or (coll = 'groups' and coalesce((data->'members'->>(auth.uid()::text))::numeric, 0) > 0)
+    or (coll = 'gsessions' and public.is_group_member(data->>'gid'))
+  );
+
 -- Ménage : les anciens groupes permanents et les anciennes sessions de groupe disparaissent.
 delete from public.docs where coll = 'gsessions' or (coll = 'groups' and data->>'min' is null);
