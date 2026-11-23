@@ -122,6 +122,7 @@ button:disabled{cursor:not-allowed}
 .goal .dot.on{background:var(--tomato)}
 .goal.met .dot{border-color:var(--leaf)}.goal.met .dot.on{background:var(--leaf)}
 .stepper{display:flex;align-items:center;gap:4px}
+.dur{margin-left:4px}.dur input{width:46px;height:28px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-family:var(--f-mono);font-size:.85rem;text-align:center;-moz-appearance:textfield;appearance:textfield}.dur input::-webkit-outer-spin-button,.dur input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}.dur :disabled{opacity:.45}
 .stepper button{width:28px;height:28px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:700;line-height:1}
 .opts{display:flex;gap:16px;flex-wrap:wrap;align-items:center;font-size:.88rem;color:var(--muted);border-top:1px solid var(--line);padding-top:14px}
 .toggle{display:flex;align-items:center;gap:8px;cursor:pointer}
@@ -301,6 +302,7 @@ button:disabled{cursor:not-allowed}
             <button class="preset" data-min="25">25</button>
             <button class="preset" data-min="45">45</button>
             <button class="preset" data-min="60">60</button>
+            <span class="stepper dur" data-kind="focus"><button type="button" data-step="-1" aria-label="Une minute de moins">−</button><input type="number" min="5" max="90" step="1" inputmode="numeric" aria-label="Durée du focus en minutes"><button type="button" data-step="1" aria-label="Une minute de plus">+</button></span>
           </div>
         </div>
         <div class="chips" id="cats" role="group" aria-label="Catégorie"></div>
@@ -418,11 +420,12 @@ button:disabled{cursor:not-allowed}
           </div>
         </div>
         <div class="set-row">
-          <div><b>Durée par défaut</b><span class="muted small">minutes</span></div>
+          <div><b>Durée par défaut</b><span class="muted small">de 5 à 90 min, à la minute près</span></div>
           <div class="presets" role="group" aria-label="Durée par défaut" id="set-duration">
             <button class="preset" type="button" data-min="25">25</button>
             <button class="preset" type="button" data-min="45">45</button>
             <button class="preset" type="button" data-min="60">60</button>
+            <span class="stepper dur" data-kind="focus"><button type="button" data-step="-1" aria-label="Une minute de moins">−</button><input type="number" min="5" max="90" step="1" inputmode="numeric" aria-label="Durée du focus en minutes"><button type="button" data-step="1" aria-label="Une minute de plus">+</button></span>
           </div>
         </div>
       </div>
@@ -440,11 +443,12 @@ button:disabled{cursor:not-allowed}
       <div class="card">
         <h3>Pause</h3>
         <div class="set-row">
-          <div><b>Durée de la pause</b><span class="muted small">minutes, après chaque pomodoro</span></div>
+          <div><b>Durée de la pause</b><span class="muted small">de 1 à 45 min, après chaque pomodoro</span></div>
           <div class="presets" role="group" aria-label="Durée de la pause" id="set-break">
             <button class="preset" type="button" data-break="2">2</button>
             <button class="preset" type="button" data-break="5">5</button>
             <button class="preset" type="button" data-break="10">10</button>
+            <span class="stepper dur" data-kind="break"><button type="button" data-step="-1" aria-label="Une minute de moins">−</button><input type="number" min="1" max="45" step="1" inputmode="numeric" aria-label="Durée de la pause en minutes"><button type="button" data-step="1" aria-label="Une minute de plus">+</button></span>
           </div>
         </div>
         <label class="set-row switch-row">
@@ -767,7 +771,10 @@ function miniPlant(ok,title){const s=svg(`<svg viewBox="20 30 160 185" role="img
 /* ---------- timer ---------- */
 const GRACE=10000;
 let cfg=Object.assign({focus:25,strict:true,cat:"travail",breakMin:5,autoBreak:true},store.get("pousse.cfg",{}));
-if(![25,45,60].includes(cfg.focus))cfg.focus=25;
+/* Durées réglables à la minute : focus de 5 à 90 min, pause de 1 à 45 min. */
+const LIM={focus:[5,90],break:[1,45]};
+function clampMin(k,v){const [a,b]=LIM[k];v=Math.round(+v);return Number.isFinite(v)?Math.min(b,Math.max(a,v)):(k==="focus"?25:5);}
+cfg.focus=clampMin("focus",cfg.focus);
 let T=store.get("pousse.timer",null)||{phase:"idle"};
 const saveT=()=>store.set("pousse.timer",T);
 const saveCfg=()=>store.set("pousse.cfg",cfg);
@@ -801,7 +808,7 @@ function completeFocus(){
 function lobbyToFocus(now){const r=S.groups[T.gid];if(r){T.n=memberIdsOf(r).length;T.gname=r.name||"";}T.phase="focus";T.beat=now;T.hiddenAt=0;}
 function wither(reason){const m=Math.min(T.min,(Date.now()-T.startAt)/60000);const s=recordSession({ok:false,min:m,label:T.label,cat:T.cat,gid:T.gid,gname:T.gname});T={phase:"withered",last:s,reason};saveT();wake(false);renderTimer(true);}
 /* Pause après un pomodoro : 2, 5 ou 10 min selon les réglages (5 par défaut), quelle que soit la durée du focus. */
-const breakMin=()=>[2,5,10].includes(+cfg.breakMin)?+cfg.breakMin:5;
+const breakMin=()=>cfg.breakMin==null?5:clampMin("break",cfg.breakMin);
 /* from = fin du pomodoro (si la page était fermée, la pause part de là ; déjà écoulée, on ne la lance pas). */
 function startBreak(from){ensureAudio();const now=Date.now(),m=breakMin();const start=typeof from==="number"&&from<now?from:now;if(start+m*60000<=now){renderTimer(true);return;}T={phase:"break",startAt:start,endAt:start+m*60000,min:m,last:T.last};saveT();renderTimer(true);}
 function toIdle(){T={phase:"idle"};saveT();renderTimer(true);}
@@ -839,7 +846,7 @@ function renderTimer(full){
   if(!full)return;
   const ph=$("phase"),sub=$("phase-sub"),acts=$("actions");acts.replaceChildren();
   const locked=busy()||T.phase==="break";
-  document.querySelectorAll(".preset[data-min]").forEach(b=>{b.setAttribute("aria-pressed",String(+b.dataset.min===cfg.focus));b.disabled=locked;});
+  document.querySelectorAll(".preset[data-min]").forEach(b=>{b.setAttribute("aria-pressed",String(+b.dataset.min===cfg.focus));b.disabled=locked;});renderDur();
   document.querySelectorAll("#cats .chip").forEach(b=>{b.setAttribute("aria-pressed",String(b.dataset.cat===cfg.cat));b.disabled=busy();});
   $("task-label").disabled=busy();
   if(T.phase==="idle"){ph.textContent="Prêt à planter";const est=baseTomatoes(cfg.focus);
@@ -1244,11 +1251,11 @@ function applyTheme(t){
   const m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute("content",dark?"#151515":"#2D7A4C");
   renderSettings();lastPlantKey="";renderTimer(true);
 }
-function renderSettings(){
+function renderSettings(){renderDur();
   const t=themeChoice();
   document.querySelectorAll("#set-theme button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.themeChoice===t)));
   $("strict").checked=!!cfg.strict;$("sound").checked=cfg.sound!==false;$("autobreak").checked=cfg.autoBreak!==false;
-  document.querySelectorAll("#set-break button").forEach(b=>b.setAttribute("aria-pressed",String(+b.dataset.break===breakMin())));
+  document.querySelectorAll("#set-break button[data-break]").forEach(b=>b.setAttribute("aria-pressed",String(+b.dataset.break===breakMin())));
   $("goal-val").textContent=String(myDoc.goal);
   const acc=document.querySelector(".account-btn");
   $("set-name").textContent=S.me&&S.me.name?S.me.name:"Mode local (sans compte)";
@@ -1260,7 +1267,7 @@ $("goal-minus").addEventListener("click",()=>setGoal(myDoc.goal-1));
 $("goal-plus").addEventListener("click",()=>setGoal(myDoc.goal+1));
 $("sound").addEventListener("change",e=>{cfg.sound=e.target.checked;saveCfg();if(cfg.sound){ensureAudio();chime(true);}});
 $("autobreak").addEventListener("change",e=>{cfg.autoBreak=e.target.checked;saveCfg();});
-document.querySelectorAll("#set-break button").forEach(b=>b.addEventListener("click",()=>{cfg.breakMin=+b.dataset.break;saveCfg();renderSettings();renderTimer(true);}));
+document.querySelectorAll("#set-break button[data-break]").forEach(b=>b.addEventListener("click",()=>setDur("break",b.dataset.break)));
 $("set-account").addEventListener("click",()=>{const acc=document.querySelector(".account-btn");if(acc)acc.click();});
 
 let view="focus";const VIEWS=["focus","club","groupes","profil","retours","reglages"];
@@ -1271,7 +1278,12 @@ function route(){const h=(location.hash||"").slice(1);if(view!=="retours")prevVi
 window.addEventListener("hashchange",()=>{if(captureInvite()){if(canCloud())processInvite();else toast("Connecte-toi dans Réglages pour rejoindre cette session de groupe.");}route();});
 
 /* ---------- events ---------- */
-document.querySelectorAll(".preset[data-min]").forEach(b=>b.addEventListener("click",()=>{cfg.focus=+b.dataset.min;saveCfg();lastPlantKey="";renderTimer(true);renderGSessions();if(view==="groupes")renderGroups();}));
+function setDur(k,v){v=clampMin(k,v);if(k==="focus")cfg.focus=v;else cfg.breakMin=v;saveCfg();lastPlantKey="";renderTimer(true);renderSettings();renderGSessions();if(view==="groupes")renderGroups();}
+function renderDur(){const locked=busy()||T.phase==="break";document.querySelectorAll(".dur").forEach(d=>{const k=d.dataset.kind,v=k==="focus"?cfg.focus:breakMin(),inp=d.querySelector("input");if(document.activeElement!==inp)inp.value=v;const off=k==="focus"&&locked&&!!d.closest("#presets");d.querySelectorAll("button,input").forEach(x=>x.disabled=off);});}
+document.querySelectorAll(".preset[data-min]").forEach(b=>b.addEventListener("click",()=>setDur("focus",b.dataset.min)));
+document.querySelectorAll(".dur").forEach(d=>{const k=d.dataset.kind,inp=d.querySelector("input");
+  d.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>setDur(k,(k==="focus"?cfg.focus:breakMin())+ +b.dataset.step)));
+  inp.addEventListener("change",()=>setDur(k,inp.value));inp.addEventListener("keydown",e=>{if(e.key==="Enter")inp.blur();});});
 document.querySelector('.nav a[data-v="profil"]').addEventListener("click",()=>{S.profileId=null;if(view==="profil")renderProfile();});
 $("me-chip").addEventListener("click",()=>openProfile(meKey()));
 $("strict").checked=!!cfg.strict;$("strict").addEventListener("change",e=>{cfg.strict=e.target.checked;saveCfg();renderTimer(true);});
