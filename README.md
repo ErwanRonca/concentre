@@ -3,7 +3,7 @@
 Le pomodoro en équipe : reste concentré·e, fais pousser ta plante, récolte des tomates et grimpe au classement avec tes amis.
 
 - **Focus** : sessions de 25, 45 ou 60 minutes. En mode strict, ta plante fane si tu quittes la page.
-- **Tomates** : la monnaie du jeu. Tu gagnes 1 tomate pour 25 à 59 minutes, 2 tomates à partir de 60 minutes, et +1 pour une session de groupe.
+- **Tomates** : la monnaie du jeu. Tu gagnes 1 tomate toutes les 10 minutes de focus réussi, et en session de groupe (2 personnes ou plus) +1 tomate par tranche de 25 minutes.
 - **Club** : qui est en focus en ce moment, défi de la semaine, classement, podium et fil d'activité avec kudos.
 - **Groupes** : lance un pomodoro à plusieurs, avec un bonus d'XP et de tomates.
 - **Profil** : niveaux, badges, trophées, objectif quotidien et catégories.

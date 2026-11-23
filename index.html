@@ -400,7 +400,7 @@ button:disabled{cursor:not-allowed}
           <li>Dès que vous êtes <b>au moins 2</b> dans la salle, n'importe qui peut <b>lancer</b> : tout le monde démarre en même temps.</li>
           <li>Une fois lancée, plus personne ne peut entrer. À la fin du pomodoro, la salle disparaît.</li>
         </ol>
-        <p class="muted small" style="margin:0">Chaque participant qui va au bout gagne +1 tomate de groupe, et chaque participant en plus donne +10 % d'XP à chacun (jusqu'à +50 %).</p>
+        <p class="muted small" style="margin:0">Chaque participant qui va au bout gagne +1 tomate de groupe par tranche de 25 min (en plus de la tomate toutes les 10 min), et chaque participant en plus donne +10 % d'XP à chacun (jusqu'à +50 %).</p>
         <div class="actions" style="justify-content:flex-start" id="room-create"></div>
       </div>
       <div class="two" id="my-groups"></div>
@@ -693,9 +693,9 @@ function earnedBadges(d,ctx){const out=[];for(const f of FAMILIES){const v=f.val
 const BADGE_TOTAL=FAMILIES.length*3+SPECIALS.length;
 
 /* ---------- player document ---------- */
-/* Tomates : 0 sous 25 min, 1 de 25 à 59 min, 2 à partir de 60 min ; +1 pour une session de groupe terminée à 2 ou plus. */
-const baseTomatoes=min=>min>=60?2:min>=25?1:0;
-const groupTomato=n=>(n||1)>=2?1:0;
+/* Monnaie : 1 tomate toutes les 10 min de focus réussi ; en groupe (2 ou plus), +1 tomate par tranche de 25 min. */
+const baseTomatoes=min=>Math.floor((min||0)/10);
+const groupTomato=(n,min)=>(n||1)>=2?Math.floor((min||0)/25):0;
 function defaultDoc(){return{v:3,tomatoes:0,tomatoesSpent:0,xp:0,totalMin:0,totalPomos:0,withered:0,streak:0,bestStreak:0,lastDay:null,weekKey:weekKey(new Date()),weekMin:0,weekPomos:0,prevWeekKey:null,prevWeekMin:0,prevWeekPomos:0,days:{},recent:[],cleanRun:0,bestClean:0,early:false,night:false,bestDayMin:0,goal:4,goalDays:0,cats:{},weekCats:{},groupSessions:0,trophies:[],badges:[],focusUntil:0,focusLabel:"",focusGid:"",updatedAt:0};}
 function normalize(d){const src=clone(d||{});const x=Object.assign(defaultDoc(),src);if(src.xp==null)x.xp=x.totalMin;if(src.tomatoes==null)x.tomatoes=x.totalPomos;for(const k of ["recent","trophies","badges"])if(!Array.isArray(x[k]))x[k]=[];for(const k of ["days","cats","weekCats"])if(!x[k]||typeof x[k]!=="object")x[k]={};return x;}
 function streakNow(d){const t=dayKey(new Date()),y=dayKey(addDays(new Date(),-1));return(d.lastDay===t||d.lastDay===y)?d.streak:0;}
@@ -726,7 +726,7 @@ async function dbSet(path,data){if(!canCloud())return false;try{await S.db.doc(p
 function recordSession(o){
   const sess={id:rid(),at:Date.now(),min:Math.max(0,Math.round(o.min)),label:(o.label||"").slice(0,80),ok:o.ok,cat:o.cat||"perso"};
   if(o.gid){sess.gid=o.gid;sess.gname=(o.gname||(S.groups[o.gid]||{}).name||"").slice(0,40);sess.n=o.n||1;}
-  const bonus=o.ok?Math.min(.5,.1*((o.n||1)-1)):0;sess.xp=o.ok?Math.round(sess.min*(1+bonus)):0;sess.tomBase=o.ok?baseTomatoes(sess.min):0;sess.tomGroup=o.ok&&o.gid?groupTomato(o.n):0;sess.tom=sess.tomBase+sess.tomGroup;
+  const bonus=o.ok?Math.min(.5,.1*((o.n||1)-1)):0;sess.xp=o.ok?Math.round(sess.min*(1+bonus)):0;sess.tomBase=o.ok?baseTomatoes(sess.min):0;sess.tomGroup=o.ok&&o.gid?groupTomato(o.n,sess.min):0;sess.tom=sess.tomBase+sess.tomGroup;
   whenReady(()=>{
     const now=new Date(sess.at),dk=dayKey(now),wk=weekKey(now);const d=clone(myDoc);
     if(d.weekKey!==wk){d.prevWeekKey=d.weekKey;d.prevWeekMin=d.weekMin;d.prevWeekPomos=d.weekPomos;d.weekKey=wk;d.weekMin=0;d.weekPomos=0;d.weekCats={};}
@@ -870,7 +870,7 @@ function renderTimer(full){
   document.querySelectorAll("#cats .chip").forEach(b=>{b.setAttribute("aria-pressed",String(b.dataset.cat===cfg.cat));b.disabled=busy();});
   $("task-label").disabled=busy();
   if(T.phase==="idle"){ph.textContent="Prêt à planter";const est=baseTomatoes(cfg.focus);
-    sub.textContent=(est?"Rapporte "+plural(est,"tomate")+" si tu vas au bout. ":"Session courte : pas de tomate (25 min minimum). ")+(cfg.strict?"Pas de pause possible.":"Mode souple : tu peux changer d'onglet.");
+    sub.textContent=(est?"Rapporte "+plural(est,"tomate")+" si tu vas au bout. ":"Session courte : pas de tomate (10 min minimum). ")+(cfg.strict?"Pas de pause possible.":"Mode souple : tu peux changer d'onglet.");
     acts.append(el("button",{class:"btn primary",onclick:startFocus,text:"Planter · "+cfg.focus+" min"}));
     if(canCloud())acts.append(el("button",{class:"btn",onclick:createRoom,text:"À plusieurs"}));}
   else if(T.phase==="lobby"&&T.startAt){ph.textContent="Ça démarre !";sub.textContent="Tout le monde démarre en même temps : "+T.min+" min de focus.";const sb=soundButton();if(sb)acts.append(sb);}
@@ -881,7 +881,7 @@ function renderTimer(full){
     if(confirmAbandon){acts.append(el("button",{class:"btn danger",onclick:()=>{confirmAbandon=false;wither("Session abandonnée.");},text:"Oui, laisser faner"}),el("button",{class:"btn",onclick:()=>{confirmAbandon=false;renderTimer(true);},text:"Continuer"}));}
     else acts.append(el("button",{class:"btn",onclick:()=>{confirmAbandon=true;clearTimeout(confirmTimer);confirmTimer=setTimeout(()=>{confirmAbandon=false;renderTimer(true);},5000);renderTimer(true);},text:"Abandonner"}));{const sb=soundButton();if(sb&&!confirmAbandon)acts.append(sb);}}
   else if(T.phase==="done"){const l=T.last||{};if(l.tom>0)ph.replaceChildren(tomatoIcon(18),"+"+plural(l.tom,"tomate")+" · +"+(l.xp||0)+" XP");else ph.textContent="Session terminée · +"+(l.xp||0)+" XP";
-    sub.textContent=(l.tomBase===0?"Pas de tomate en dessous de 25 min. ":"")+(l.tomGroup?"Dont +1 tomate de groupe. ":"")+(l.n>1?("Bonus de groupe à "+l.n+" : +"+Math.round(Math.min(.5,.1*(l.n-1))*100)+" % d'XP."):"Ta plante rejoint ton jardin et le fil de la communauté.");
+    sub.textContent=(l.tomBase===0?"Pas de tomate en dessous de 10 min. ":"")+(l.tomGroup?"Dont +"+plural(l.tomGroup,"tomate")+" de groupe. ":"")+(l.n>1?("Bonus de groupe à "+l.n+" : +"+Math.round(Math.min(.5,.1*(l.n-1))*100)+" % d'XP."):"Ta plante rejoint ton jardin et le fil de la communauté.");
     acts.append(el("button",{class:"btn primary",onclick:()=>startBreak(undefined,T.breakMin),text:"Pause "+(T.breakMin?clampMin("break",T.breakMin):breakMin())+" min"}),el("button",{class:"btn",onclick:toIdle,text:"Nouvelle session"}));}
   else if(T.phase==="withered"){ph.textContent="Ta plante a fané";sub.textContent=T.reason||"";
     acts.append(el("button",{class:"btn primary",onclick:toIdle,text:"Replanter"}));}
@@ -890,7 +890,7 @@ function renderTimer(full){
   renderWith();
 }
 function renderWith(){const box=$("with");box.replaceChildren();if(!busy()||!T.gid)return;const ids=participants();if(!ids.length)return;
-  box.append(el("span",{class:"avs"},...ids.slice(0,6).map(id=>avatar(id,"sm"))),el("span",{text:ids.length>1?("Vous êtes "+ids.length+" · +1 tomate de groupe et +"+Math.round(Math.min(.5,.1*(ids.length-1))*100)+" % d'XP"):"En attente des autres…"}));}
+  box.append(el("span",{class:"avs"},...ids.slice(0,6).map(id=>avatar(id,"sm"))),el("span",{text:ids.length>1?("Vous êtes "+ids.length+" · "+(groupTomato(ids.length,T.min)?"+"+plural(groupTomato(ids.length,T.min),"tomate")+" de groupe et ":"")+"+"+Math.round(Math.min(.5,.1*(ids.length-1))*100)+" % d'XP"):"En attente des autres…"}));}
 
 /* ---------- people ---------- */
 function allMembers(){const m=Object.assign({},S.members);m[meKey()]=myDoc;return m;}
@@ -1029,7 +1029,7 @@ function maybeOnboard(){
     el("div",{class:"card onboard-card"},
       el("div",{class:"eyebrow",text:"Bienvenue"}),
       el("h2",{id:"onboard-title",text:"Travailler à plusieurs"}),
-      el("p",{class:"muted small",style:"margin:0",text:"Crée une session de groupe et envoie le lien à tes amis. Dès que vous êtes au moins 2, tu lances : tout le monde démarre en même temps et gagne une tomate en plus. La salle disparaît à la fin du pomodoro."}),
+      el("p",{class:"muted small",style:"margin:0",text:"Crée une session de groupe et envoie le lien à tes amis. Dès que vous êtes au moins 2, tu lances : tout le monde démarre en même temps et gagne des tomates en plus (+1 toutes les 25 min). La salle disparaît à la fin du pomodoro."}),
       el("p",{class:"small",style:"margin:0"},el("b",{text:"Un ami t'a envoyé un lien ? "}),"Ouvre-le : tu arriveras directement dans sa salle."),
       el("div",{class:"actions",style:"justify-content:flex-start"},
         el("button",{class:"btn green",type:"button",onclick:()=>{done();createRoom();},text:"Créer une session de groupe"}),
