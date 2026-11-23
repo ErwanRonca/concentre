@@ -180,6 +180,7 @@ button:disabled{cursor:not-allowed}
 .tag.live{border-color:var(--tomato);color:var(--tomato)}
 .tag.soon{border-color:var(--c-etudes);color:var(--c-etudes)}
 .group-card{gap:12px}
+.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
 .group-stats{display:flex;gap:18px;flex-wrap:wrap;font-size:.86rem;color:var(--muted)}
 .group-stats b{font-family:var(--f-mono);color:var(--ink)}
 .create{display:flex;gap:8px;flex-wrap:wrap}
@@ -323,7 +324,7 @@ button:disabled{cursor:not-allowed}
 
       <aside class="side">
         <div class="card">
-          <div class="card-head"><h3>Sessions de groupe</h3><a class="link" href="#groupes">Mes groupes</a></div>
+          <div class="card-head"><h3>Session de groupe</h3><a class="link" href="#groupes">Comment ça marche</a></div>
           <div class="side" style="gap:10px" id="gsessions"></div>
         </div>
         <div class="card">
@@ -341,7 +342,7 @@ button:disabled{cursor:not-allowed}
 
   <!-- CLUB -->
   <section class="view" id="v-club">
-    <p class="view-intro">La <b>Communauté</b>, c'est tous les utilisateurs de Concentré : qui est en focus, le classement et le fil d'activité. Tes groupes privés avec tes proches sont dans l'onglet <a class="link" href="#groupes">Groupes</a>.</p>
+    <p class="view-intro">La <b>Communauté</b>, c'est tous les utilisateurs de Concentré : qui est en focus, le classement et le fil d'activité. Pour travailler à plusieurs au même moment, lance une session dans l'onglet <a class="link" href="#groupes">Groupes</a>.</p>
     <div class="club-grid">
       <div class="side">
         <div class="card" id="challenge-b"></div>
@@ -373,14 +374,16 @@ button:disabled{cursor:not-allowed}
     <div class="side">
       <div class="card">
         <div>
-          <div class="eyebrow">Groupes</div>
-          <h2>Travaille à plusieurs, au même moment.</h2>
+          <div class="eyebrow">Sessions de groupe</div>
+          <h2>Travaillez à plusieurs, au même moment.</h2>
         </div>
-        <p class="muted small" style="margin:0">Un groupe est <b>privé</b> : seuls ses membres le voient, et on y entre uniquement avec son lien d'invitation (bouton « Inviter » sur le groupe). N'importe quel membre peut lancer une session : elle démarre 1 minute plus tard pour tout le monde. Chaque participant qui va au bout gagne +1 tomate de groupe (à partir de 2 participants), et chaque participant en plus donne +10 % d'XP à chacun (jusqu'à +50 %).</p>
-        <form class="create" id="create-group">
-          <input class="field" id="group-name" maxlength="40" placeholder="Nom du groupe (ex. Révisions partiels)" autocomplete="off">
-          <button class="btn green" type="submit">Créer le groupe</button>
-        </form>
+        <ol class="steps muted small">
+          <li><b>Crée une salle</b> et envoie le lien à tes amis (WhatsApp, Discord…).</li>
+          <li>Dès que vous êtes <b>au moins 2</b> dans la salle, n'importe qui peut <b>lancer</b> : tout le monde démarre en même temps.</li>
+          <li>Une fois lancée, plus personne ne peut entrer. À la fin du pomodoro, la salle disparaît.</li>
+        </ol>
+        <p class="muted small" style="margin:0">Chaque participant qui va au bout gagne +1 tomate de groupe, et chaque participant en plus donne +10 % d'XP à chacun (jusqu'à +50 %).</p>
+        <div class="actions" style="justify-content:flex-start" id="room-create"></div>
       </div>
       <div class="two" id="my-groups"></div>
     </div>
@@ -666,7 +669,7 @@ const lvlStart=L=>50*(L-1)*L;
 function level(xp){let L=1;while(lvlStart(L+1)<=xp)L++;const a=lvlStart(L),b=lvlStart(L+1);return{L,name:LEVELS[Math.min(L,LEVELS.length)-1],into:xp-a,need:b-a};}
 
 /* ---------- app state ---------- */
-const S={db:null,user:null,me:null,myId:null,cloud:false,canWrite:true,status:"loading",err:null,members:{},kudos:{},groups:{},gsessions:{},profiles:{},boardMode:"week",scope:"all",profileId:null,loadedMine:false};
+const S={db:null,user:null,me:null,myId:null,cloud:false,canWrite:true,status:"loading",err:null,members:{},kudos:{},groups:{},profiles:{},boardMode:"week",scope:"all",profileId:null,loadedMine:false};
 let myDoc=normalize(store.get("pousse.local",null));
 const meKey=()=>S.myId||"me";
 const canCloud=()=>S.cloud&&S.canWrite&&!!S.myId;
@@ -684,7 +687,7 @@ async function dbSet(path,data){if(!canCloud())return false;try{await S.db.doc(p
 
 function recordSession(o){
   const sess={id:rid(),at:Date.now(),min:Math.max(0,Math.round(o.min)),label:(o.label||"").slice(0,80),ok:o.ok,cat:o.cat||"perso"};
-  if(o.gid){sess.gid=o.gid;sess.gname=((S.groups[o.gid]||{}).name||"").slice(0,40);sess.n=o.n||1;}
+  if(o.gid){sess.gid=o.gid;sess.gname=(o.gname||(S.groups[o.gid]||{}).name||"").slice(0,40);sess.n=o.n||1;}
   const bonus=o.ok?Math.min(.5,.1*((o.n||1)-1)):0;sess.xp=o.ok?Math.round(sess.min*(1+bonus)):0;sess.tomBase=o.ok?baseTomatoes(sess.min):0;sess.tomGroup=o.ok&&o.gid?groupTomato(o.n):0;sess.tom=sess.tomBase+sess.tomGroup;
   whenReady(()=>{
     const now=new Date(sess.at),dk=dayKey(now),wk=weekKey(now);const d=clone(myDoc);
@@ -755,7 +758,11 @@ const saveT=()=>store.set("pousse.timer",T);
 const saveCfg=()=>store.set("pousse.cfg",cfg);
 let confirmAbandon=false,confirmTimer=null;
 let actx=null;
-function ensureAudio(){try{actx=actx||new(window.AudioContext||window.webkitAudioContext)();if(actx.resume)actx.resume();}catch(e){}}
+function ensureAudio(){try{actx=actx||new(window.AudioContext||window.webkitAudioContext)();if(actx.resume&&actx.state!=="running")actx.resume().then(()=>{if(busy())renderTimer(true);},()=>{});}catch(e){}}
+/* Le navigateur n'autorise le son qu'après un geste : on le débloque au premier clic ou à la première touche (utile après un rechargement ou un lien d'invitation). */
+const soundLocked=()=>cfg.sound!==false&&(!actx||actx.state!=="running");
+["pointerdown","keydown"].forEach(ev=>document.addEventListener(ev,()=>{if(soundLocked()){ensureAudio();setTimeout(()=>{if(busy())renderTimer(true);},250);}},{capture:true,passive:true}));
+function soundButton(){return soundLocked()?el("button",{class:"btn",onclick:()=>{ensureAudio();setTimeout(()=>chime(true),150);},text:"Activer le son"}):null;}
 function chime(short){if(!actx||cfg.sound===false)return;try{const t=actx.currentTime;(short?[659.25,783.99]:[523.25,659.25,783.99,1046.5]).forEach((f,i)=>{const o=actx.createOscillator(),g=actx.createGain();o.type="sine";o.frequency.value=f;const s=t+i*.14;g.gain.setValueAtTime(.0001,s);g.gain.exponentialRampToValueAtTime(.22,s+.02);g.gain.exponentialRampToValueAtTime(.0001,s+.9);o.connect(g).connect(actx.destination);o.start(s);o.stop(s+1);});}catch(e){}}
 let wl=null;
 async function wake(on){try{if(on&&navigator.wakeLock&&!wl){wl=await navigator.wakeLock.request("screen");}else if(!on&&wl){await wl.release();wl=null;}}catch(e){}}
@@ -767,19 +774,22 @@ function startFocus(){
   T={phase:"focus",startAt:now,endAt:now+min*60000,min,label:$("task-label").value.trim().slice(0,80),cat:cfg.cat,beat:now,hiddenAt:0};
   saveT();wake(true);markFocusing();renderTimer(true);
 }
-function participants(){const s=T.gsid&&S.gsessions[T.gsid];if(!s||!s.joined)return[];return Object.keys(s.joined).filter(k=>s.joined[k]);}
+function participants(){const r=T.gid&&S.groups[T.gid];return r?memberIdsOf(r):[];}
 function completeFocus(){
-  const n=T.gsid?Math.max(1,participants().length):1;
-  const s=recordSession({ok:true,min:T.min,label:T.label,cat:T.cat,gid:T.gid,n});
+  const gid=T.gid;const n=gid?Math.max(1,T.n||participants().length):1;
+  const s=recordSession({ok:true,min:T.min,label:T.label,cat:T.cat,gid,gname:T.gname,n});
   T={phase:"done",last:s,breakMin:T.min>=45?10:5};saveT();wake(false);chime();renderTimer(true);
+  if(gid)closeRoom(gid);
 }
-function wither(reason){const m=Math.min(T.min,(Date.now()-T.startAt)/60000);const s=recordSession({ok:false,min:m,label:T.label,cat:T.cat,gid:T.gid});T={phase:"withered",last:s,reason};saveT();wake(false);renderTimer(true);}
+/* Passage salle d'attente → focus : on fige le nombre de participants (personne ne peut plus entrer). */
+function lobbyToFocus(now){const r=S.groups[T.gid];if(r){T.n=memberIdsOf(r).length;T.gname=r.name||"";}T.phase="focus";T.beat=now;T.hiddenAt=0;}
+function wither(reason){const m=Math.min(T.min,(Date.now()-T.startAt)/60000);const s=recordSession({ok:false,min:m,label:T.label,cat:T.cat,gid:T.gid,gname:T.gname});T={phase:"withered",last:s,reason};saveT();wake(false);renderTimer(true);}
 function startBreak(){ensureAudio();const now=Date.now(),m=T.breakMin||5;T={phase:"break",startAt:now,endAt:now+m*60000,min:m};saveT();renderTimer(true);}
 function toIdle(){T={phase:"idle"};saveT();renderTimer(true);}
 
 function tick(){
   const now=Date.now();
-  if(T.phase==="lobby"){if(now>=T.startAt){T.phase="focus";T.beat=now;T.hiddenAt=0;saveT();wake(true);chime(true);markFocusing();renderTimer(true);return;}}
+  if(T.phase==="lobby"){if(!T.startAt){syncRoom();}else if(now>=T.startAt){lobbyToFocus(now);saveT();wake(true);chime(true);markFocusing();renderTimer(true);return;}}
   else if(T.phase==="focus"){
     if(cfg.strict&&document.hidden&&T.hiddenAt&&now-T.hiddenAt>GRACE){wither("Tu as quitté la page plus de 10 secondes.");return;}
     if(now>=T.endAt){completeFocus();return;}
@@ -791,7 +801,7 @@ document.addEventListener("visibilitychange",()=>{if(T.phase!=="focus")return;if
 function resumeTimer(){
   const now=Date.now();
   if(T.phase==="focus"){const gap=now-(T.beat||T.startAt);if(cfg.strict&&gap>15000)wither("La page a été fermée pendant la session.");else if(now>=T.endAt)completeFocus();}
-  else if(T.phase==="lobby"){if(now>=T.endAt)T={phase:"idle"};else if(now>=T.startAt){T.phase="focus";T.beat=now;T.hiddenAt=0;}}
+  else if(T.phase==="lobby"&&T.startAt){if(now>=T.endAt)T={phase:"idle"};else if(now>=T.startAt)lobbyToFocus(now);}
   else if(T.phase==="break"&&now>=T.endAt)T={phase:"idle"};
 }
 
@@ -799,7 +809,7 @@ const C=2*Math.PI*138;let lastPlantKey="";
 function renderTimer(full){
   const now=Date.now();let p=0,dead=false,ring=0,ringCls="",time=cfg.focus*60000;
   if(T.phase==="focus"){p=(now-T.startAt)/(T.endAt-T.startAt);ring=p;time=T.endAt-now;}
-  else if(T.phase==="lobby"){ring=1-(T.startAt-now)/60000;ringCls=" lobby";time=T.startAt-now;}
+  else if(T.phase==="lobby"){ringCls=" lobby";if(T.startAt){ring=1-(T.startAt-now)/COUNTDOWN;time=T.startAt-now;}else{ring=0;time=(T.min||cfg.focus)*60000;}}
   else if(T.phase==="break"){p=1;ring=1-(T.endAt-now)/(T.endAt-T.startAt);ringCls=" brk";time=T.endAt-now;}
   else if(T.phase==="done"){p=1;ring=1;}
   else if(T.phase==="withered"){p=.6;dead=true;ring=1;ringCls=" dead";}
@@ -813,15 +823,17 @@ function renderTimer(full){
   document.querySelectorAll(".preset").forEach(b=>{b.setAttribute("aria-pressed",String(+b.dataset.min===cfg.focus));b.disabled=locked;});
   document.querySelectorAll("#cats .chip").forEach(b=>{b.setAttribute("aria-pressed",String(b.dataset.cat===cfg.cat));b.disabled=busy();});
   $("task-label").disabled=busy();
-  const gname=T.gid?((S.groups[T.gid]||{}).name||"ton groupe"):"";
   if(T.phase==="idle"){ph.textContent="Prêt à planter";const est=baseTomatoes(cfg.focus);
     sub.textContent=(est?"Rapporte "+plural(est,"tomate")+" si tu vas au bout. ":"Session courte : pas de tomate (25 min minimum). ")+(cfg.strict?"Pas de pause possible.":"Mode souple : tu peux changer d'onglet.");
-    acts.append(el("button",{class:"btn primary",onclick:startFocus,text:"Planter · "+cfg.focus+" min"}));}
-  else if(T.phase==="lobby"){ph.textContent="Session de groupe · "+gname;sub.textContent="Démarre pour tout le monde à la fin du compte à rebours ("+T.min+" min de focus).";
-    acts.append(el("button",{class:"btn",onclick:leaveLobby,text:"Quitter la session"}));}
+    acts.append(el("button",{class:"btn primary",onclick:startFocus,text:"Planter · "+cfg.focus+" min"}));
+    if(canCloud())acts.append(el("button",{class:"btn",onclick:createRoom,text:"À plusieurs"}));}
+  else if(T.phase==="lobby"&&T.startAt){ph.textContent="Ça démarre !";sub.textContent="Tout le monde démarre en même temps : "+T.min+" min de focus.";const sb=soundButton();if(sb)acts.append(sb);}
+  else if(T.phase==="lobby"){const n=participants().length;ph.textContent="Salle d'attente · "+plural(n,"présent");
+    sub.textContent=n<2?"Envoie le lien à tes amis : tu pourras lancer dès que vous serez 2.":"Tout le monde est là ? Lance : la session démarre en même temps pour tous ("+T.min+" min).";
+    acts.append(...roomButtons());}
   else if(T.phase==="focus"){ph.textContent=(T.gid?"En groupe · ":"")+(T.label?T.label:"Focus en cours");sub.textContent=catName(T.cat)+(cfg.strict?" · reste sur cette page, ta plante pousse.":" · ta plante pousse.");
     if(confirmAbandon){acts.append(el("button",{class:"btn danger",onclick:()=>{confirmAbandon=false;wither("Session abandonnée.");},text:"Oui, laisser faner"}),el("button",{class:"btn",onclick:()=>{confirmAbandon=false;renderTimer(true);},text:"Continuer"}));}
-    else acts.append(el("button",{class:"btn",onclick:()=>{confirmAbandon=true;clearTimeout(confirmTimer);confirmTimer=setTimeout(()=>{confirmAbandon=false;renderTimer(true);},5000);renderTimer(true);},text:"Abandonner"}));}
+    else acts.append(el("button",{class:"btn",onclick:()=>{confirmAbandon=true;clearTimeout(confirmTimer);confirmTimer=setTimeout(()=>{confirmAbandon=false;renderTimer(true);},5000);renderTimer(true);},text:"Abandonner"}));{const sb=soundButton();if(sb&&!confirmAbandon)acts.append(sb);}}
   else if(T.phase==="done"){const l=T.last||{};if(l.tom>0)ph.replaceChildren(tomatoIcon(18),"+"+plural(l.tom,"tomate")+" · +"+(l.xp||0)+" XP");else ph.textContent="Session terminée · +"+(l.xp||0)+" XP";
     sub.textContent=(l.tomBase===0?"Pas de tomate en dessous de 25 min. ":"")+(l.tomGroup?"Dont +1 tomate de groupe. ":"")+(l.n>1?("Bonus de groupe à "+l.n+" : +"+Math.round(Math.min(.5,.1*(l.n-1))*100)+" % d'XP."):"Ta plante rejoint ton jardin et le fil de la communauté.");
     acts.append(el("button",{class:"btn primary",onclick:startBreak,text:"Pause "+(T.breakMin||5)+" min"}),el("button",{class:"btn",onclick:toIdle,text:"Nouvelle session"}));}
@@ -831,8 +843,8 @@ function renderTimer(full){
     acts.append(el("button",{class:"btn",onclick:toIdle,text:"Passer la pause"}));}
   renderWith();
 }
-function renderWith(){const box=$("with");box.replaceChildren();if(!busy()||!T.gsid)return;const ids=participants();if(!ids.length)return;
-  box.append(el("span",{class:"avs"},...ids.slice(0,6).map(id=>avatar(id,"sm"))),el("span",{text:ids.length>1?("Vous êtes "+ids.length+" · +1 tomate de groupe et +"+Math.round(Math.min(.5,.1*(ids.length-1))*100)+" % d'XP"):"En attente des autres membres…"}));}
+function renderWith(){const box=$("with");box.replaceChildren();if(!busy()||!T.gid)return;const ids=participants();if(!ids.length)return;
+  box.append(el("span",{class:"avs"},...ids.slice(0,6).map(id=>avatar(id,"sm"))),el("span",{text:ids.length>1?("Vous êtes "+ids.length+" · +1 tomate de groupe et +"+Math.round(Math.min(.5,.1*(ids.length-1))*100)+" % d'XP"):"En attente des autres…"}));}
 
 /* ---------- people ---------- */
 function allMembers(){const m=Object.assign({},S.members);m[meKey()]=myDoc;return m;}
@@ -844,7 +856,7 @@ function championId(){const r=podiumRows(Object.keys(allMembers()));return r.len
 function whoCell(id,sub){const b=el("b",{},nameOf(id));if(isMe(id))b.append(el("span",{class:"you",text:"toi"}));if(id===championId())b.append(svg(CROWN));return el("div",{class:"who"},b,sub?el("small",{text:sub}):null);}
 function openProfile(id){S.profileId=isMe(id)?null:id;if(location.hash==="#profil")route();else location.hash="#profil";window.scrollTo(0,0);}
 let profTimer=null;
-function resolveProfiles(){if(!S.user)return;clearTimeout(profTimer);profTimer=setTimeout(async()=>{const ids=new Set(Object.keys(S.members));Object.keys(S.kudos).forEach(k=>ids.add(k));Object.values(S.groups).forEach(g=>Object.keys(g.members||{}).forEach(k=>ids.add(k)));Object.values(S.gsessions).forEach(s=>Object.keys(s.joined||{}).forEach(k=>ids.add(k)));ids.delete(meKey());if(!ids.size)return;try{S.profiles=await S.user.profiles([...ids]);}catch(e){}renderData();},60);}
+function resolveProfiles(){if(!S.user)return;clearTimeout(profTimer);profTimer=setTimeout(async()=>{const ids=new Set(Object.keys(S.members));Object.keys(S.kudos).forEach(k=>ids.add(k));Object.values(S.groups).forEach(g=>Object.keys(g.members||{}).forEach(k=>ids.add(k)));ids.delete(meKey());if(!ids.size)return;try{S.profiles=await S.user.profiles([...ids]);}catch(e){}renderData();},60);}
 
 /* ---------- kudos ---------- */
 function kudosFor(owner,sid){const key=owner+":"+sid;let n=0,mine=false;for(const [uid,doc] of Object.entries(S.kudos)){if(doc&&doc.g&&doc.g[key]){n++;if(uid===S.myId)mine=true;}}return{n,mine};}
@@ -854,87 +866,113 @@ function toggleKudos(owner,sid){if(!canCloud())return;const key=owner+":"+sid;co
 /* ---------- groups ---------- */
 const memberIdsOf=g=>Object.keys((g&&g.members)||{}).filter(k=>g.members[k]);
 function myGroups(){return Object.entries(S.groups).filter(([,g])=>g.members&&g.members[S.myId]).map(([id,g])=>Object.assign({id},g)).sort((a,b)=>a.at-b.at);}
-async function createGroup(name){
-  if(!canCloud()){toast("Les groupes ont besoin d'un compte : connecte-toi dans Réglages.");return;}
-  const id=rid();const g={name:name.slice(0,40),by:S.myId,at:Date.now(),members:{[S.myId]:Date.now()}};
-  S.groups=Object.assign({},S.groups,{[id]:g});renderData();if(await dbSet("groups/"+id,g))toast("Groupe « "+g.name+" » créé. Invite tes amis à le rejoindre.");
-}
-/* ---------- invitations (groupes privés) ---------- */
+/* ---------- sessions de groupe éphémères ----------
+   Une « salle » (collection groups) vit le temps d'un pomodoro : on la crée, on envoie le lien,
+   on lance dès qu'on est au moins 2, tout le monde démarre ensemble, puis elle est supprimée. */
+const COUNTDOWN=5000,MIN_ROOM=2;
 const INVITE_KEY="pousse.invite";
+const roomUrl=(id,code)=>location.origin+location.pathname+"#rejoindre/"+id+"."+code;
+function myRoom(){return T.gid&&busy()?S.groups[T.gid]||null:null;}
+async function createRoom(){
+  if(!canCloud()){toast("Les sessions de groupe ont besoin d'un compte : connecte-toi dans Réglages.");return;}
+  if(busy()){toast("Termine d'abord ta session en cours.");return;}
+  ensureAudio();const id=rid(),now=Date.now();const label=$("task-label").value.trim().slice(0,80);
+  const r={name:"Session de "+((S.me&&S.me.name)||"groupe"),by:S.myId,at:now,members:{[S.myId]:now},invite:inviteCode(),min:cfg.focus,label,cat:cfg.cat};
+  S.groups=Object.assign({},S.groups,{[id]:r});
+  if(!(await dbSet("groups/"+id,r))){const g=Object.assign({},S.groups);delete g[id];S.groups=g;return;}
+  T={phase:"lobby",gid:id,min:r.min,label,cat:r.cat,since:now};saveT();
+  location.hash="#focus";renderTimer(true);renderData();
+  shareRoom(id,true);
+}
+/* Copie (ou partage sur téléphone) le lien de la salle. auto = juste après la création, sans fenêtre de secours. */
+async function shareRoom(id,auto){
+  const r=S.groups[id];if(!r||!r.invite)return;
+  const url=roomUrl(id,r.invite);const text="Rejoins ma session de groupe sur Concentré ("+r.min+" min, on démarre ensemble) :";
+  if(!auto&&navigator.share&&matchMedia("(pointer: coarse)").matches){try{await navigator.share({title:"Concentré",text,url});return;}catch(e){if(e&&e.name==="AbortError")return;}}
+  try{await navigator.clipboard.writeText(text+" "+url);toast("Lien copié : colle-le à tes amis (WhatsApp, Discord…).");}
+  catch(e){if(!auto)window.prompt("Copie ce lien :",url);}
+}
+async function launchRoom(){
+  const r=myRoom();if(!r||T.startAt)return;
+  if(memberIdsOf(r).length<MIN_ROOM){toast("Il faut être au moins "+MIN_ROOM+" dans la salle pour lancer.");return;}
+  ensureAudio();const startAt=Date.now()+COUNTDOWN,endAt=startAt+r.min*60000;
+  if(!(await dbUpdate("groups/"+T.gid,{startAt,endAt})))return;
+  S.groups=Object.assign({},S.groups,{[T.gid]:Object.assign({},r,{startAt,endAt})});syncRoom();
+}
+/* Aligne la salle d'attente sur la salle partagée : lancement, départ des autres, salle fermée. */
+function syncRoom(){
+  if(T.phase!=="lobby"||!T.gid||!S.groupsLoaded)return;
+  const r=S.groups[T.gid];const now=Date.now();
+  if(!r||!(r.members&&r.members[S.myId])){if(now-(T.since||0)>10000){toast("La salle a été fermée.");toIdle();}return;}
+  if(r.startAt&&!T.startAt){
+    if(now>r.startAt+30000){toast("La session a démarré sans toi.");dbUpdate("groups/"+T.gid,{members:{[S.myId]:0}});toIdle();return;}
+    Object.assign(T,{startAt:r.startAt,endAt:r.endAt,min:r.min,label:r.label||"",cat:r.cat||"perso"});saveT();chime(true);renderTimer(true);renderData();return;}
+  if(!r.startAt&&(T.min!==r.min||T.label!==(r.label||""))){Object.assign(T,{min:r.min,label:r.label||"",cat:r.cat||"perso"});saveT();renderTimer(true);}
+}
+function leaveLobby(){
+  const r=S.groups[T.gid];const gid=T.gid;toIdle();
+  if(!r)return;if(r.by===S.myId)closeRoom(gid);else dbUpdate("groups/"+gid,{members:{[S.myId]:0}});
+}
+/* Fermer une salle : on la marque fermée (les autres le voient en direct), puis on la supprime. */
+const closing=new Set();
+async function closeRoom(gid){
+  if(!canCloud()||closing.has(gid))return;closing.add(gid);
+  const g=Object.assign({},S.groups);delete g[gid];S.groups=g;
+  try{await S.db.doc("groups/"+gid).update({closed:Date.now()});}catch(e){}
+  try{await S.db.doc("groups/"+gid).delete();}catch(e){}
+}
+function roomButtons(){
+  const r=myRoom();if(!r||T.startAt)return[];const n=memberIdsOf(r).length;
+  return[el("button",{class:"btn primary",disabled:n<MIN_ROOM,onclick:launchRoom,text:n<MIN_ROOM?"Lancer (dès "+MIN_ROOM+")":"Lancer à "+n}),
+    el("button",{class:"btn",onclick:()=>shareRoom(T.gid),text:"Copier le lien"}),
+    el("button",{class:"btn",onclick:leaveLobby,text:r.by===S.myId?"Fermer la salle":"Quitter"}),soundButton()].filter(Boolean);
+}
+function roomCard(){
+  const r=myRoom();if(!r)return null;const ids=memberIdsOf(r);const now=Date.now();
+  let status;
+  if(T.phase==="focus")status=el("span",{class:"tag live",text:"en cours · encore "+Math.max(1,Math.ceil((T.endAt-now)/60000))+" min"});
+  else if(T.startAt)status=el("span",{class:"tag soon",text:"démarre dans "+Math.max(0,Math.ceil((T.startAt-now)/1000))+" s"});
+  else status=el("span",{class:"tag soon",text:"salle d'attente"});
+  return el("div",{class:"gs"},
+    el("div",{class:"gs-top"},el("b",{text:r.name||"Session de groupe"}),status),
+    el("div",{class:"small"},r.min+" min"+(r.label?" · ":""),r.label?el("i",{text:r.label}):null," ",el("span",{class:"tag cat cat-"+(r.cat||"perso"),text:catName(r.cat)})),
+    el("div",{class:"gs-bot"},el("span",{class:"avs"},...ids.slice(0,8).map(id=>avatar(id,"sm"))),el("span",{class:"muted small",text:plural(ids.length,"participant")})),
+    T.phase==="lobby"&&!T.startAt?el("div",{class:"actions",style:"justify-content:flex-start"},...roomButtons()):null);
+}
+/* ---------- invitations (lien d'une salle) ---------- */
 function captureInvite(){const h=location.hash||"";if(!h.startsWith("#rejoindre/"))return false;
   try{localStorage.setItem(INVITE_KEY,h.slice("#rejoindre/".length));}catch(e){}
-  history.replaceState(null,"",location.pathname+location.search+"#groupes");return true;}
+  history.replaceState(null,"",location.pathname+location.search+"#focus");return true;}
 function pendingInvite(){try{return localStorage.getItem(INVITE_KEY)||"";}catch(e){return"";}}
 function clearInvite(){try{localStorage.removeItem(INVITE_KEY);}catch(e){}}
 async function processInvite(){
   const v=pendingInvite();if(!v||!canCloud()||!S.db.rpc)return false;
   const dot=v.indexOf(".");const gid=dot>0?v.slice(0,dot):v,code=dot>0?v.slice(dot+1):"";
   clearInvite();
-  if(S.groups[gid]&&S.groups[gid].members&&S.groups[gid].members[S.myId]){toast("Tu fais déjà partie de ce groupe.");location.hash="#groupes";return true;}
+  if(T.gid===gid&&busy()){location.hash="#focus";return true;}
+  if(busy()){toast("Termine d'abord ta session en cours, puis rouvre le lien.");return true;}
   try{const name=await S.db.rpc("join_group",{p_gid:gid,p_code:code});
-    store.set("pousse.onboarded",1);toast("Bienvenue dans « "+(name||"ton nouveau groupe")+" » !");
-    setTimeout(()=>{location.hash="#groupes";location.reload();},1200);}
-  catch(e){toast("Ce lien d'invitation n'est pas valable. Demande un nouveau lien à ton ami.");}
+    store.set("pousse.onboarded",1);T={phase:"lobby",gid,min:cfg.focus,since:Date.now()};saveT();
+    toast("Tu es dans la salle « "+(name||"session de groupe")+" » !");
+    setTimeout(()=>{location.hash="#focus";location.reload();},900);}
+  catch(e){toast(/already_started/.test((e&&e.message)||"")?"Trop tard : cette session a déjà commencé. Demande à ton ami d'en lancer une autre.":"Ce lien n'est plus valable : la session est terminée ou la salle a été fermée.");}
   return true;
 }
 function inviteCode(){return(rid()+rid()).replace(/[^a-z0-9]/g,"").slice(0,20);}
-async function inviteToGroup(g){
-  let code=g.invite;
-  if(!code){code=inviteCode();if(!(await dbUpdate("groups/"+g.id,{invite:code})))return;S.groups[g.id]=Object.assign({},S.groups[g.id],{invite:code});}
-  const url=location.origin+location.pathname+"#rejoindre/"+g.id+"."+code;
-  const text="Rejoins mon groupe « "+g.name+" » sur Concentré pour faire des pomodoros ensemble :";
-  if(navigator.share&&matchMedia("(pointer: coarse)").matches){try{await navigator.share({title:"Concentré",text,url});return;}catch(e){if(e&&e.name==="AbortError")return;}}
-  try{await navigator.clipboard.writeText(text+" "+url);toast("Lien d'invitation copié : colle-le à tes amis (WhatsApp, Discord…).");}
-  catch(e){window.prompt("Copie ce lien d'invitation :",url);}
-}
-/* Après l'inscription : proposer une seule fois de créer son groupe (ou d'ouvrir le lien reçu d'un ami). */
+/* Après l'inscription : expliquer une fois les sessions de groupe. */
 function maybeOnboard(){
-  if(!canCloud()||!S.groupsLoaded||myGroups().length||store.get("pousse.onboarded",0))return;
+  if(!canCloud()||T.gid&&busy()||store.get("pousse.onboarded",0))return;
   const done=()=>{store.set("pousse.onboarded",1);wrap.remove();};
-  const input=el("input",{class:"field",maxlength:"40",placeholder:"Nom du groupe (ex. Révisions partiels)",autocomplete:"off","aria-label":"Nom du groupe"});
-  const form=el("form",{class:"create",onsubmit:e=>{e.preventDefault();const v=input.value.trim();if(!v){input.focus();return;}done();createGroup(v);location.hash="#groupes";}},input,el("button",{class:"btn green",type:"submit",text:"Créer mon groupe"}));
   const wrap=el("div",{class:"onboard",role:"dialog","aria-modal":"true","aria-labelledby":"onboard-title"},
     el("div",{class:"card onboard-card"},
       el("div",{class:"eyebrow",text:"Bienvenue"}),
-      el("h2",{id:"onboard-title",text:"Rejoins un groupe ou crée le tien"}),
-      el("p",{class:"muted small",style:"margin:0",text:"Un groupe, c'est ta bande (potes, classe, collègues) : vous lancez des pomodoros ensemble, au même moment, et gagnez une tomate en plus. Il est privé : on y entre seulement avec son lien d'invitation."}),
-      form,
-      el("p",{class:"small",style:"margin:0"},el("b",{text:"Un ami t'a envoyé un lien ? "}),"Ouvre-le simplement : tu rejoindras son groupe automatiquement."),
-      el("button",{class:"btn",type:"button",onclick:done,text:"Plus tard"})));
-  document.body.append(wrap);input.focus();
-}
-const leavingGroup={};
-async function leaveGroup(id){if(!leavingGroup[id]){leavingGroup[id]=true;renderGroups();setTimeout(()=>{leavingGroup[id]=false;renderGroups();},5000);return;}leavingGroup[id]=false;await dbUpdate("groups/"+id,{members:{[S.myId]:0}});}
-async function launchGroup(gid){
-  if(busy()){toast("Termine d'abord ta session en cours.");return;}
-  ensureAudio();const now=Date.now(),min=cfg.focus,sid=rid();const label=$("task-label").value.trim().slice(0,80);
-  const s={gid,by:S.myId,startAt:now+60000,endAt:now+60000+min*60000,min,label,cat:cfg.cat,joined:{[S.myId]:now}};
-  if(!(await dbSet("gsessions/"+sid,s)))return;
-  S.gsessions=Object.assign({},S.gsessions,{[sid]:s});
-  T={phase:"lobby",gid,gsid:sid,startAt:s.startAt,endAt:s.endAt,min,label,cat:cfg.cat};saveT();
-  location.hash="#focus";renderTimer(true);renderData();
-}
-async function joinSession(sid){
-  const s=S.gsessions[sid];if(!s)return;if(busy()){toast("Termine d'abord ta session en cours.");return;}
-  ensureAudio();const now=Date.now();
-  if(!(await dbUpdate("gsessions/"+sid,{joined:{[S.myId]:now}})))return;
-  if(now<s.startAt){T={phase:"lobby",gid:s.gid,gsid:sid,startAt:s.startAt,endAt:s.endAt,min:s.min,label:s.label||"",cat:s.cat||"perso"};}
-  else{const min=Math.max(1,Math.round((s.endAt-now)/60000));T={phase:"focus",gid:s.gid,gsid:sid,startAt:now,endAt:s.endAt,min,label:s.label||"",cat:s.cat||"perso",beat:now,hiddenAt:0};wake(true);markFocusing();}
-  saveT();location.hash="#focus";renderTimer(true);
-}
-function leaveLobby(){if(T.gsid)dbUpdate("gsessions/"+T.gsid,{joined:{[S.myId]:0}});toIdle();}
-function activeSessions(gid){const now=Date.now();const mine=new Set(myGroups().map(g=>g.id));return Object.entries(S.gsessions).filter(([,s])=>(gid?s.gid===gid:mine.has(s.gid))&&s.endAt>now).sort((a,b)=>a[1].startAt-b[1].startAt);}
-function sessionCard([sid,s]){
-  const now=Date.now();const ids=Object.keys(s.joined||{}).filter(k=>s.joined[k]);const inIt=T.gsid===sid&&busy();const g=S.groups[s.gid]||{};
-  const soon=now<s.startAt;const left=Math.ceil(((soon?s.startAt:s.endAt)-now)/(soon?1000:60000));
-  const status=soon?el("span",{class:"tag soon",text:"démarre dans "+left+" s"}):el("span",{class:"tag live",text:"en cours · encore "+left+" min"});
-  let btn;if(inIt)btn=el("span",{class:"tag",text:"Tu y participes"});
-  else if(!soon&&(s.endAt-now)<3*60000)btn=el("span",{class:"muted small",text:"Bientôt terminée"});
-  else btn=el("button",{class:"btn sm primary",disabled:busy()||!canCloud(),onclick:()=>joinSession(sid),text:soon?"Rejoindre":"Rejoindre en route"});
-  return el("div",{class:"gs"},
-    el("div",{class:"gs-top"},el("b",{text:g.name||"Groupe"}),status),
-    el("div",{class:"small"},nameOf(s.by)+" a lancé "+s.min+" min"+(s.label?" · ":""),s.label?el("i",{text:s.label}):null," ",el("span",{class:"tag cat cat-"+(s.cat||"perso"),text:catName(s.cat)})),
-    el("div",{class:"gs-bot"},el("span",{class:"avs"},...ids.slice(0,8).map(id=>avatar(id,"sm"))),btn));
+      el("h2",{id:"onboard-title",text:"Travailler à plusieurs"}),
+      el("p",{class:"muted small",style:"margin:0",text:"Crée une session de groupe et envoie le lien à tes amis. Dès que vous êtes au moins 2, tu lances : tout le monde démarre en même temps et gagne une tomate en plus. La salle disparaît à la fin du pomodoro."}),
+      el("p",{class:"small",style:"margin:0"},el("b",{text:"Un ami t'a envoyé un lien ? "}),"Ouvre-le : tu arriveras directement dans sa salle."),
+      el("div",{class:"actions",style:"justify-content:flex-start"},
+        el("button",{class:"btn green",type:"button",onclick:()=>{done();createRoom();},text:"Créer une session de groupe"}),
+        el("button",{class:"btn",type:"button",onclick:done,text:"Plus tard"}))));
+  document.body.append(wrap);
 }
 
 /* ---------- renders ---------- */
@@ -984,7 +1022,7 @@ function renderBoard(box,mode,ids,limit){
       el("div",{class:"metric"},fmtMin(r.min),el("small",{text:plural(r.n,"pomodoro")}))));});
   if(rows.length<2)box.append(el("p",{class:"empty",text:"Pour l'instant tu es seul·e ici. Partage cette page avec tes amis : chacun apparaît au classement dès sa première session."}));
 }
-function renderScope(){const box=$("scope");const gs=myGroups();box.hidden=!gs.length;box.replaceChildren(el("button",{"aria-pressed":String(S.scope==="all"),onclick:()=>{S.scope="all";renderData();},text:"Toute la communauté"}),...gs.map(g=>el("button",{"aria-pressed":String(S.scope===g.id),onclick:()=>{S.scope=g.id;renderData();},text:g.name})));if(S.scope!=="all"&&!gs.some(g=>g.id===S.scope))S.scope="all";}
+function renderScope(){$("scope").hidden=true;S.scope="all";}
 function podiumRows(ids){const m=allMembers();return ids.filter(id=>m[id]).map(id=>Object.assign({id},lastWeekOf(m[id]))).filter(r=>r.min>0).sort((a,b)=>b.min-a.min).slice(0,3);}
 function renderPodium(){
   const box=$("podium");$("podium-when").textContent=weekLabel(lastWeekKey());const rows=podiumRows(scopeIds());box.replaceChildren();
@@ -1002,12 +1040,11 @@ function renderLive(){
     box.append(el("div",{class:"row click",style:"grid-template-columns:28px minmax(0,1fr) auto",onclick:()=>openProfile(id)},avatar(id),whoCell(id,(d.focusLabel||"Session de focus")+(g?" · en groupe ("+g.name+")":"")),el("div",{class:"metric"},"encore "+left+" min")));});
 }
 function renderGSessions(){
-  const box=$("gsessions");box.replaceChildren();const gs=myGroups();
-  if(!gs.length){box.append(el("p",{class:"empty",text:"Rejoins ou crée un groupe pour lancer des pomodoros à plusieurs, au même moment."}),el("a",{class:"btn sm",href:"#groupes",style:"align-self:flex-start;text-decoration:none",text:"Voir les groupes"}));return;}
-  const act=activeSessions();act.forEach(e=>box.append(sessionCard(e)));
-  if(!act.length)box.append(el("p",{class:"empty",text:"Aucune session de groupe en cours."}));
-  const sel=el("select",{class:"field",id:"launch-group","aria-label":"Groupe"},...gs.map(g=>el("option",{value:g.id,text:g.name})));
-  box.append(el("div",{class:"create"},sel,el("button",{class:"btn sm green",disabled:busy()||!canCloud(),onclick:()=>launchGroup(sel.value),text:"Lancer à plusieurs · "+cfg.focus+" min"})));
+  const box=$("gsessions");box.replaceChildren();
+  const card=roomCard();if(card){box.append(card);return;}
+  if(!canCloud()){box.append(el("p",{class:"empty",text:"Les sessions de groupe ont besoin d'un compte : connecte-toi dans Réglages."}));return;}
+  box.append(el("p",{class:"empty",text:"Crée une salle, envoie le lien à tes amis et lancez ensemble dès que vous êtes 2."}),
+    el("button",{class:"btn sm green",style:"align-self:flex-start",disabled:busy(),onclick:createRoom,text:"Créer une session de groupe · "+cfg.focus+" min"}));
 }
 function renderGarden(){
   const box=$("garden");const t=dayKey(new Date());const today=myDoc.recent.filter(s=>dayKey(new Date(s.at))===t).reverse();box.replaceChildren();const ok=today.filter(s=>s.ok);
@@ -1034,24 +1071,13 @@ function renderFeed(){
   });
 }
 function renderGroups(){
-  const mine=$("my-groups");mine.replaceChildren();const m=allMembers();
-  const gs=myGroups();
-  if(!gs.length)mine.append(el("div",{class:"card"},el("h3",{text:"Tes groupes"}),el("p",{class:"empty",text:canCloud()?"Tu n'es dans aucun groupe. Crée le tien ci-dessus, ou demande à un ami de t'envoyer le lien d'invitation de son groupe."  :"Les groupes ont besoin d'un compte. Connecte-toi dans Réglages pour les utiliser."})));
-  gs.forEach(g=>{
-    const ids=memberIdsOf(g);let wm=0,wn=0;ids.forEach(id=>{if(m[id]){const w=weekOf(m[id]);wm+=w.min;wn+=w.n;}});
-    const board=el("div",{class:"rows"});renderBoard(board,"week",ids,5);
-    const act=activeSessions(g.id);
-    mine.append(el("div",{class:"card group-card"},
-      el("div",{class:"card-head"},el("h3",{text:g.name}),el("span",{class:"avs"},...ids.slice(0,8).map(id=>avatar(id,"sm")))),
-      el("div",{class:"group-stats"},el("span",{},el("b",{text:String(ids.length)})," membre"+(ids.length>1?"s":"")),el("span",{},el("b",{text:String(wn)})," pomodoro"+(wn>1?"s":"")+" cette semaine"),el("span",{},el("b",{text:fmtMin(wm)})," de focus")),
-      ...act.map(sessionCard),
-      board,
-      el("div",{class:"actions"},
-        el("button",{class:"btn sm green",disabled:busy()||!canCloud(),onclick:()=>launchGroup(g.id),text:"Lancer une session à plusieurs · "+cfg.focus+" min"}),
-        el("button",{class:"btn sm",disabled:!canCloud(),onclick:()=>inviteToGroup(g),text:"Inviter"}),
-        el("button",{class:"btn sm",onclick:()=>{S.scope=g.id;location.hash="#club";},text:"Classement du groupe"}),
-        el("button",{class:"btn sm"+(leavingGroup[g.id]?" danger":""),onclick:()=>leaveGroup(g.id),text:leavingGroup[g.id]?"Confirmer : quitter":"Quitter"}))));
-  });
+  const mine=$("my-groups");mine.replaceChildren();
+  const cr=$("room-create");cr.replaceChildren();
+  const card=roomCard();
+  if(card){mine.append(el("div",{class:"card group-card"},el("h3",{text:"Ta session de groupe"}),card));return;}
+  if(!canCloud()){cr.append(el("p",{class:"empty",text:"Les sessions de groupe ont besoin d'un compte. Connecte-toi dans Réglages pour les utiliser."}));return;}
+  cr.append(el("button",{class:"btn green",disabled:busy(),onclick:createRoom,text:"Créer une salle · "+cfg.focus+" min"}));
+  if(busy())cr.append(el("span",{class:"muted small",text:"Termine d'abord ta session en cours."}));
 }
 function heatmap(d){
   const weeks=17,cell=12,gap=3;const today=new Date();today.setHours(12);const start=addDays(parseKey(weekKey(today)),-(weeks-1)*7);
@@ -1220,7 +1246,7 @@ function route(){const h=(location.hash||"").slice(1);if(view!=="retours")prevVi
   for(const v of VIEWS)$("v-"+v).classList.toggle("on",v===view);
   document.querySelectorAll(".nav a").forEach(a=>a.setAttribute("aria-current",a.dataset.v===view?"page":"false"));
   if(view==="profil")renderProfile();if(view==="groupes")renderGroups();if(view==="club")renderData();}
-window.addEventListener("hashchange",()=>{if(captureInvite()){if(canCloud())processInvite();else toast("Connecte-toi dans Réglages pour rejoindre ce groupe.");}route();});
+window.addEventListener("hashchange",()=>{if(captureInvite()){if(canCloud())processInvite();else toast("Connecte-toi dans Réglages pour rejoindre cette session de groupe.");}route();});
 
 /* ---------- events ---------- */
 document.querySelectorAll(".preset").forEach(b=>b.addEventListener("click",()=>{cfg.focus=+b.dataset.min;saveCfg();lastPlantKey="";renderTimer(true);renderGSessions();if(view==="groupes")renderGroups();}));
@@ -1231,13 +1257,12 @@ $("bm-week").addEventListener("click",()=>{S.boardMode="week";renderData();});
 $("bm-all").addEventListener("click",()=>{S.boardMode="all";renderData();});
 $("task-label").value=store.get("pousse.label","");
 $("task-label").addEventListener("input",e=>store.set("pousse.label",e.target.value));
-$("create-group").addEventListener("submit",e=>{e.preventDefault();const v=$("group-name").value.trim();if(!v){$("group-name").focus();return;}$("group-name").value="";createGroup(v);});
 
 /* ---------- boot ---------- */
 async function boot(){
   captureInvite();route();resumeTimer();renderAll();
   setInterval(tick,250);
-  setInterval(()=>{renderLive();if(document.querySelector("#gsessions .gs")||activeSessions().length)renderGSessions();if(view==="groupes"&&activeSessions().length)renderGroups();},1000);
+  setInterval(()=>{renderLive();if(T.gid&&T.startAt&&busy()){renderGSessions();if(view==="groupes")renderGroups();}},1000);
   const use=n=>(window.claude&&typeof window.claude.use==="function")?Promise.resolve(window.claude.use(n)).catch(()=>null):Promise.resolve(null);
   const [db,user,fb]=await Promise.all([use("db"),use("user"),use("feedback")]);
   S.user=user;
@@ -1262,11 +1287,12 @@ async function boot(){
       resolveProfiles();renderBanner();renderData();
     },err=>{clearTimeout(slow);S.status="error";S.err=err&&err.code;S.cloud=false;myDoc=localDoc;markReady();renderBanner();renderData();});
     db.collection("kudos").onSnapshot(snap=>{const k={};snap.docs.forEach(d=>{if(d.exists)k[d.id]=d.data();});S.kudos=k;if(ready)checkBadges();resolveProfiles();renderData();},()=>{});
-    db.collection("groups").onSnapshot(snap=>{const g={};snap.docs.forEach(d=>{if(d.exists)g[d.id]=d.data();});S.groups=g;S.groupsLoaded=true;resolveProfiles();renderData();},()=>{});
-    db.collection("gsessions").where("endAt",">",Date.now()-2*3600000).onSnapshot(snap=>{
-      const prev=S.gsessions;const g={};snap.docs.forEach(d=>{if(d.exists)g[d.id]=d.data();});S.gsessions=g;
-      if(ready){const mine=new Set(myGroups().map(x=>x.id));for(const [id,s] of Object.entries(g))if(!prev[id]&&s.by!==S.myId&&mine.has(s.gid)&&s.startAt>Date.now()&&!snap.metadata.fromCache)toast(nameOf(s.by)+" lance une session de groupe dans « "+((S.groups[s.gid]||{}).name||"ton groupe")+" ». Rejoins-la depuis Focus.");}
-      resolveProfiles();renderData();},()=>{});
+    /* Salles de groupe : on ignore (et supprime) les salles fermées, terminées, abandonnées ou des anciens groupes permanents. */
+    db.collection("groups").onSnapshot(snap=>{const g={};const now=Date.now();
+      snap.docs.forEach(d=>{if(!d.exists)return;const r=d.data();if(!r||r.closed)return;
+        const stale=!r.min||(r.endAt&&r.endAt<now-120000)||(!r.startAt&&(r.at||0)<now-6*3600000);
+        if(stale){if(!(T.gid===d.id&&busy()))closeRoom(d.id);return;}g[d.id]=r;});
+      S.groups=g;S.groupsLoaded=true;syncRoom();resolveProfiles();if(T.gid)renderTimer(true);renderData();},()=>{});
   }else{S.status="local";markReady();}
   renderAll();
   whenReady(()=>setTimeout(async()=>{if(await processInvite())return;maybeOnboard();},1500));

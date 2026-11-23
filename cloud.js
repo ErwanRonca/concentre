@@ -69,6 +69,11 @@ function makeDb(sb) {
         update: async (data) => {
           const { error } = await sb.rpc("merge_doc", { p_coll: coll, p_id: id, p_patch: data });
           if (error) throw mapErr(error);
+        },
+        /* suppression (une salle de groupe terminée) */
+        delete: async () => {
+          const { error } = await sb.from("docs").delete().eq("coll", coll).eq("id", id);
+          if (error) throw mapErr(error);
         }
       };
     },
@@ -167,7 +172,7 @@ function loginScreen(sb) {
         <div class="login-mark" aria-hidden="true">🍅</div>
         <h1>Concentré</h1>
         <p class="login-intro">Le pomodoro en équipe : reste concentré·e, fais pousser ta plante et récolte des tomates avec tes amis.</p>
-        ${hasInvite() ? `<p class="login-invite">Tu as été invité·e dans un groupe : crée ton compte (ou connecte-toi) pour le rejoindre.</p>` : ""}
+        ${hasInvite() ? `<p class="login-invite">Un ami t'invite à une session de groupe : crée ton compte (ou connecte-toi) pour le rejoindre.</p>` : ""}
         <div class="login-tabs" role="tablist">
           <button type="button" role="tab" data-mode="signup">Créer un compte</button>
           <button type="button" role="tab" data-mode="signin">Se connecter</button>
