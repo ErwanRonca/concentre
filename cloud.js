@@ -71,6 +71,12 @@ function makeDb(sb) {
           if (error) throw mapErr(error);
         }
       };
+    },
+    /* Appel d'une fonction de la base (ex. join_group pour rejoindre un groupe privé par lien). */
+    async rpc(fn, args) {
+      const { data, error } = await sb.rpc(fn, args);
+      if (error) throw mapErr(error);
+      return data;
     }
   };
 }
@@ -148,6 +154,7 @@ const AUTH_ERRORS = {
   "Email not confirmed": "Ton e-mail n'est pas encore confirmé.",
   "Password should be at least 6 characters.": "Le mot de passe doit faire au moins 6 caractères."
 };
+const hasInvite = () => { try { return !!localStorage.getItem("pousse.invite"); } catch (e) { return false; } };
 const authMsg = e => AUTH_ERRORS[e && e.message] || (e && e.message) || "Erreur inconnue.";
 
 function loginScreen(sb) {
@@ -160,6 +167,7 @@ function loginScreen(sb) {
         <div class="login-mark" aria-hidden="true">🍅</div>
         <h1>Concentré</h1>
         <p class="login-intro">Le pomodoro en équipe : reste concentré·e, fais pousser ta plante et récolte des tomates avec tes amis.</p>
+        ${hasInvite() ? `<p class="login-invite">Tu as été invité·e dans un groupe : crée ton compte (ou connecte-toi) pour le rejoindre.</p>` : ""}
         <div class="login-tabs" role="tablist">
           <button type="button" role="tab" data-mode="signup">Créer un compte</button>
           <button type="button" role="tab" data-mode="signin">Se connecter</button>
@@ -222,7 +230,7 @@ async function start() {
   const { data } = await sb.auth.getSession();
   let u = data.session ? data.session.user : null;
   let skip = false; try { skip = localStorage.getItem(LOCAL_KEY) === "1"; } catch (e) {}
-  if (!u && !skip) u = await loginScreen(sb);
+  if (!u && (!skip || hasInvite())) u = await loginScreen(sb);
   if (!u) {
     accountButton("Se connecter", () => { try { localStorage.removeItem(LOCAL_KEY); } catch (e) {} location.reload(); });
     return { db: null, user: null };
