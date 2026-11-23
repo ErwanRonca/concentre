@@ -122,6 +122,9 @@ button:disabled{cursor:not-allowed}
 .goal .dot.on{background:var(--tomato)}
 .goal.met .dot{border-color:var(--leaf)}.goal.met .dot.on{background:var(--leaf)}
 .stepper{display:flex;align-items:center;gap:4px}
+.durs{display:flex;flex-direction:column;gap:6px;align-items:flex-end}.dur-row{display:flex;align-items:center;gap:8px;justify-content:flex-end;flex-wrap:wrap}.dur-lbl{font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);min-width:42px;text-align:right}
+@media (max-width:620px){.durs{align-items:flex-start}.dur-row{justify-content:flex-start}.dur-lbl{text-align:left}}
+.durs .preset{min-width:44px;text-align:center}.dur-lbl{min-width:48px!important}
 .dur{margin-left:4px}.dur input{width:46px;height:28px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-family:var(--f-mono);font-size:.85rem;text-align:center;-moz-appearance:textfield;appearance:textfield}.dur input::-webkit-outer-spin-button,.dur input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}.dur :disabled{opacity:.45}
 .stepper button{width:28px;height:28px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:700;line-height:1}
 .opts{display:flex;gap:16px;flex-wrap:wrap;align-items:center;font-size:.88rem;color:var(--muted);border-top:1px solid var(--line);padding-top:14px}
@@ -298,11 +301,23 @@ button:disabled{cursor:not-allowed}
             <div class="eyebrow">Session de focus</div>
             <h2>Plante, concentre-toi, récolte.</h2>
           </div>
-          <div class="presets" id="presets" role="group" aria-label="Durée en minutes">
-            <button class="preset" data-min="25">25</button>
-            <button class="preset" data-min="45">45</button>
-            <button class="preset" data-min="60">60</button>
-            <span class="stepper dur" data-kind="focus"><button type="button" data-step="-1" aria-label="Une minute de moins">−</button><input type="number" min="5" max="90" step="1" inputmode="numeric" aria-label="Durée du focus en minutes"><button type="button" data-step="1" aria-label="Une minute de plus">+</button></span>
+          <div class="durs">
+            <div class="dur-row"><span class="dur-lbl">Focus</span>
+              <div class="presets" id="presets" role="group" aria-label="Durée du focus en minutes">
+                <button class="preset" data-min="25">25</button>
+                <button class="preset" data-min="45">45</button>
+                <button class="preset" data-min="60">60</button>
+                <span class="stepper dur" data-kind="focus"><button type="button" data-step="-1" aria-label="Une minute de moins">−</button><input type="number" min="5" max="90" step="1" inputmode="numeric" aria-label="Durée du focus en minutes"><button type="button" data-step="1" aria-label="Une minute de plus">+</button></span>
+              </div>
+            </div>
+            <div class="dur-row"><span class="dur-lbl">Pause</span>
+              <div class="presets" role="group" aria-label="Durée de la pause en minutes">
+                <button class="preset" type="button" data-break="2">2</button>
+                <button class="preset" type="button" data-break="5">5</button>
+                <button class="preset" type="button" data-break="10">10</button>
+                <span class="stepper dur" data-kind="break"><button type="button" data-step="-1" aria-label="Une minute de moins">−</button><input type="number" min="1" max="45" step="1" inputmode="numeric" aria-label="Durée de la pause en minutes"><button type="button" data-step="1" aria-label="Une minute de plus">+</button></span>
+              </div>
+            </div>
           </div>
         </div>
         <div class="chips" id="cats" role="group" aria-label="Catégorie"></div>
@@ -1255,7 +1270,7 @@ function renderSettings(){renderDur();
   const t=themeChoice();
   document.querySelectorAll("#set-theme button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.themeChoice===t)));
   $("strict").checked=!!cfg.strict;$("sound").checked=cfg.sound!==false;$("autobreak").checked=cfg.autoBreak!==false;
-  document.querySelectorAll("#set-break button[data-break]").forEach(b=>b.setAttribute("aria-pressed",String(+b.dataset.break===breakMin())));
+  document.querySelectorAll(".preset[data-break]").forEach(b=>b.setAttribute("aria-pressed",String(+b.dataset.break===breakMin())));
   $("goal-val").textContent=String(myDoc.goal);
   const acc=document.querySelector(".account-btn");
   $("set-name").textContent=S.me&&S.me.name?S.me.name:"Mode local (sans compte)";
@@ -1267,7 +1282,7 @@ $("goal-minus").addEventListener("click",()=>setGoal(myDoc.goal-1));
 $("goal-plus").addEventListener("click",()=>setGoal(myDoc.goal+1));
 $("sound").addEventListener("change",e=>{cfg.sound=e.target.checked;saveCfg();if(cfg.sound){ensureAudio();chime(true);}});
 $("autobreak").addEventListener("change",e=>{cfg.autoBreak=e.target.checked;saveCfg();});
-document.querySelectorAll("#set-break button[data-break]").forEach(b=>b.addEventListener("click",()=>setDur("break",b.dataset.break)));
+document.querySelectorAll(".preset[data-break]").forEach(b=>b.addEventListener("click",()=>setDur("break",b.dataset.break)));
 $("set-account").addEventListener("click",()=>{const acc=document.querySelector(".account-btn");if(acc)acc.click();});
 
 let view="focus";const VIEWS=["focus","club","groupes","profil","retours","reglages"];
@@ -1279,7 +1294,7 @@ window.addEventListener("hashchange",()=>{if(captureInvite()){if(canCloud())proc
 
 /* ---------- events ---------- */
 function setDur(k,v){v=clampMin(k,v);if(k==="focus")cfg.focus=v;else cfg.breakMin=v;saveCfg();lastPlantKey="";renderTimer(true);renderSettings();renderGSessions();if(view==="groupes")renderGroups();}
-function renderDur(){const locked=busy()||T.phase==="break";document.querySelectorAll(".dur").forEach(d=>{const k=d.dataset.kind,v=k==="focus"?cfg.focus:breakMin(),inp=d.querySelector("input");if(document.activeElement!==inp)inp.value=v;const off=k==="focus"&&locked&&!!d.closest("#presets");d.querySelectorAll("button,input").forEach(x=>x.disabled=off);});}
+function renderDur(){const locked=busy()||T.phase==="break";document.querySelectorAll(".durs .preset").forEach(b=>b.disabled=locked);document.querySelectorAll(".preset[data-break]").forEach(b=>b.setAttribute("aria-pressed",String(+b.dataset.break===breakMin())));document.querySelectorAll(".dur").forEach(d=>{const k=d.dataset.kind,v=k==="focus"?cfg.focus:breakMin(),inp=d.querySelector("input");if(document.activeElement!==inp)inp.value=v;const off=locked&&!!d.closest(".durs");d.querySelectorAll("button,input").forEach(x=>x.disabled=off);});}
 document.querySelectorAll(".preset[data-min]").forEach(b=>b.addEventListener("click",()=>setDur("focus",b.dataset.min)));
 document.querySelectorAll(".dur").forEach(d=>{const k=d.dataset.kind,inp=d.querySelector("input");
   d.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>setDur(k,(k==="focus"?cfg.focus:breakMin())+ +b.dataset.step)));
