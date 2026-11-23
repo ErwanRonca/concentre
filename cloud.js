@@ -157,8 +157,8 @@ function loginScreen(sb) {
     wrap.className = "login";
     wrap.innerHTML = `
       <form class="login-card" novalidate>
-        <div class="login-mark" aria-hidden="true">🍅</div>
-        <h1>Concentré</h1>
+        <div class="login-mark" aria-hidden="true"><svg width="48" height="48" viewBox="0 0 24 24"><circle cx="12" cy="13.5" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="13.5" r="3" fill="var(--tomato)"/><path d="M12 5.5c0-2 1.5-3.5 4-3.5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg></div>
+        <h1>concentré</h1>
         <p class="login-intro">Le pomodoro en équipe : reste concentré·e, fais pousser ta plante et récolte des tomates avec tes amis.</p>
         <div class="login-tabs" role="tablist">
           <button type="button" role="tab" data-mode="signup">Créer un compte</button>
