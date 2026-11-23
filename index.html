@@ -132,12 +132,13 @@ button:disabled{cursor:not-allowed}
 .empty{color:var(--muted);font-size:.9rem;margin:0}
 
 /* plant */
-.pl-stem{stroke:var(--leaf);fill:none;stroke-linecap:round}
-.pl-leaf{fill:var(--leaf)}.pl-leaf2{fill:var(--leaf-2)}
-.pl-dead{stroke:var(--dead)}.pl-deadleaf{fill:var(--dead)}
-.pl-fruit{fill:var(--tomato)}.pl-unripe{fill:var(--leaf-2)}
-.pl-pot{fill:var(--pot)}.pl-rim{fill:var(--pot);filter:brightness(.92)}
-.pl-soil,.pl-seed{fill:var(--soil)}
+/* Plante en trait fin (style Studio) : contours à l'encre, seule la tomate mûre est pleine. */
+.pl-stem{stroke:var(--ink);fill:none;stroke-linecap:round}
+.pl-leaf,.pl-leaf2{fill:none;stroke:var(--ink);stroke-width:2.2;stroke-linejoin:round}
+.pl-dead{stroke:var(--dead)}.pl-deadleaf{fill:none;stroke:var(--dead);stroke-width:2.2;stroke-linejoin:round}
+.pl-fruit{fill:var(--tomato)}.pl-unripe{fill:none;stroke:var(--ink);stroke-width:2.2}
+.pl-pot,.pl-rim{fill:none;stroke:var(--ink);stroke-width:2.4;stroke-linejoin:round}
+.pl-soil{fill:none;stroke:none}.pl-seed{fill:var(--ink)}
 .ring-track{stroke:var(--line);fill:none}
 .ring-fill{stroke:var(--tomato);fill:none;stroke-linecap:round;transition:stroke-dashoffset .3s linear}
 .ring-fill.brk{stroke:var(--leaf)}.ring-fill.dead{stroke:var(--dead)}.ring-fill.lobby{stroke:var(--c-etudes)}
@@ -726,7 +727,7 @@ function plantInner(p,dead){
   const top=[100+lean,168-H*(dead?.8:1)],mid=[100+(dead?6:lean*.5),168-H*.55];let out="";
   if(p<0.04&&!dead){out+=`<ellipse cx="100" cy="163" rx="8" ry="5" class="pl-seed"/>`;}
   else{
-    out+=`<path d="M${base[0]} ${base[1]}Q${mid[0]} ${mid[1]} ${top[0]} ${top[1]}" class="pl-stem${dead?" pl-dead":""}" stroke-width="${(3.5+p*2.5).toFixed(1)}"/>`;
+    out+=`<path d="M${base[0]} ${base[1]}Q${mid[0]} ${mid[1]} ${top[0]} ${top[1]}" class="pl-stem${dead?" pl-dead":""}" stroke-width="2.6"/>`;
     [0.12,0.28,0.44,0.6,0.74].forEach((t0,i)=>{const g=Math.max(0,Math.min(1,(p-t0)/0.18));if(g<=0)return;const [x,y]=bez(0.18+i*0.15,base,mid,top);const s=(14+i*1.5)*g*(1-i*0.06);const right=i%2===0;const ang=dead?(right?40:140):(right?-28:208);out+=`<path d="${leafPath(s)}" transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${ang})" class="${dead?"pl-deadleaf":(i%2?"pl-leaf2":"pl-leaf")}"/>`;});
     const [tx,ty]=top;const cs=dead?8:7+p*5;
     out+=`<path d="${leafPath(cs)}" transform="translate(${tx.toFixed(1)} ${ty.toFixed(1)}) rotate(${dead?60:-60})" class="${dead?"pl-deadleaf":"pl-leaf2"}"/>`;
@@ -801,7 +802,7 @@ function renderTimer(full){
   const sec=Math.max(0,Math.ceil(time/1000));$("time").textContent=pad(Math.floor(sec/60))+":"+pad(sec%60);
   const key=(dead?"d":"")+Math.round(p*200)+"|"+Math.round(ring*600)+ringCls;
   if(key!==lastPlantKey){lastPlantKey=key;
-    $("ring").innerHTML=`<circle cx="150" cy="150" r="138" stroke-width="8" class="ring-track"/><circle cx="150" cy="150" r="138" stroke-width="8" class="ring-fill${ringCls}" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C*(1-Math.max(0,Math.min(1,ring)))).toFixed(1)}" transform="rotate(-90 150 150)"/><svg x="50" y="38" width="200" height="220" viewBox="0 0 200 220">${plantInner(p,dead)}</svg>`;}
+    $("ring").innerHTML=`<circle cx="150" cy="150" r="138" stroke-width="2" class="ring-track"/><circle cx="150" cy="150" r="138" stroke-width="4" class="ring-fill${ringCls}" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C*(1-Math.max(0,Math.min(1,ring)))).toFixed(1)}" transform="rotate(-90 150 150)"/><svg x="50" y="38" width="200" height="220" viewBox="0 0 200 220">${plantInner(p,dead)}</svg>`;}
   if(!full)return;
   const ph=$("phase"),sub=$("phase-sub"),acts=$("actions");acts.replaceChildren();
   const locked=busy()||T.phase==="break";
