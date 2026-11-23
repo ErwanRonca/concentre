@@ -152,17 +152,26 @@ function makeFeedback(sb, me) {
   };
 }
 
-/* ---------- écran de connexion ---------- */
+/* ---------- écran de connexion (compte obligatoire) ---------- */
 const AUTH_ERRORS = {
   "Invalid login credentials": "E-mail ou mot de passe incorrect.",
   "User already registered": "Un compte existe déjà avec cet e-mail : connecte-toi.",
   "Email not confirmed": "Ton e-mail n'est pas encore confirmé.",
-  "Password should be at least 6 characters.": "Le mot de passe doit faire au moins 6 caractères."
+  "Password should be at least 6 characters.": "Le mot de passe doit faire au moins 6 caractères.",
+  "New password should be different from the old password.": "Choisis un mot de passe différent de l'ancien.",
+  "Unable to validate email address: invalid format": "Cette adresse e-mail n'est pas valide."
 };
 const hasInvite = () => { try { return !!localStorage.getItem("pousse.invite"); } catch (e) { return false; } };
-const authMsg = e => AUTH_ERRORS[e && e.message] || (e && e.message) || "Erreur inconnue.";
+const authMsg = e => {
+  const m = (e && e.message) || "";
+  if (AUTH_ERRORS[m]) return AUTH_ERRORS[m];
+  if (/rate limit|too many|security purposes/i.test(m)) return "Trop de demandes d'affilée : réessaie dans quelques minutes.";
+  return m || "Erreur inconnue.";
+};
+const appUrl = () => location.origin + location.pathname;
 
-function loginScreen(sb) {
+/* mode : "signup" (créer un compte), "signin" (se connecter), "forgot" (recevoir un lien pour changer de mot de passe). */
+function loginScreen(sb, notice) {
   return new Promise(resolve => {
     let mode = "signup";
     const wrap = document.createElement("div");
@@ -173,35 +182,52 @@ function loginScreen(sb) {
         <h1>Concentré</h1>
         <p class="login-intro">Le pomodoro en équipe : reste concentré·e, fais pousser ta plante et récolte des tomates avec tes amis.</p>
         ${hasInvite() ? `<p class="login-invite">Un ami t'invite à une session de groupe : crée ton compte (ou connecte-toi) pour le rejoindre.</p>` : ""}
-        <div class="login-tabs" role="tablist">
+        <div class="login-tabs" role="tablist" data-hide="forgot">
           <button type="button" role="tab" data-mode="signup">Créer un compte</button>
           <button type="button" role="tab" data-mode="signin">Se connecter</button>
         </div>
-        <label class="login-field" data-only="signup">Pseudo<input name="pseudo" autocomplete="nickname" maxlength="24" placeholder="Comment le club t'appelle"></label>
+        <p class="login-forgot-intro" data-only="forgot">Entre l'e-mail de ton compte : tu vas recevoir un lien pour choisir un nouveau mot de passe.</p>
+        <label class="login-field" data-only="signup">Pseudo<input name="pseudo" autocomplete="nickname" maxlength="24" placeholder="Comment les autres t'appellent"></label>
         <label class="login-field">E-mail<input name="email" type="email" autocomplete="email" required></label>
-        <label class="login-field">Mot de passe<input name="password" type="password" minlength="6" required></label>
+        <label class="login-field" data-hide="forgot">Mot de passe<input name="password" type="password" minlength="6"></label>
+        <button class="login-link" type="button" data-only="signin" data-go="forgot">Mot de passe oublié ?</button>
         <button class="login-main" type="submit">Créer mon compte</button>
-        <button class="login-local" type="button">Essayer sans compte</button>
+        <button class="login-link" type="button" data-only="forgot" data-go="signin">Retour à la connexion</button>
         <p class="login-err" role="alert"></p>
+        <p class="login-ok" role="status"></p>
       </form>`;
     document.body.append(wrap);
     const form = wrap.querySelector("form");
-    const errBox = wrap.querySelector(".login-err");
+    const errBox = wrap.querySelector(".login-err"), okBox = wrap.querySelector(".login-ok");
     const main = wrap.querySelector(".login-main");
     const setMode = m => {
-      mode = m; errBox.textContent = "";
+      mode = m; errBox.textContent = ""; okBox.textContent = "";
       wrap.querySelectorAll(".login-tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.mode === m)));
       wrap.querySelectorAll("[data-only]").forEach(x => { x.hidden = x.dataset.only !== m; });
-      main.textContent = m === "signup" ? "Créer mon compte" : "Me connecter";
+      wrap.querySelectorAll("[data-hide]").forEach(x => { x.hidden = x.dataset.hide === m; });
+      main.textContent = m === "signup" ? "Créer mon compte" : m === "signin" ? "Me connecter" : "Envoyer le lien";
       form.password.autocomplete = m === "signup" ? "new-password" : "current-password";
     };
     wrap.querySelectorAll(".login-tabs button").forEach(b => b.addEventListener("click", () => setMode(b.dataset.mode)));
-    setMode("signup");
+    wrap.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => setMode(b.dataset.go)));
+    setMode(notice ? "forgot" : "signup");
+    if (notice) errBox.textContent = notice;
 
     form.addEventListener("submit", async ev => {
       ev.preventDefault();
-      errBox.textContent = "";
+      errBox.textContent = ""; okBox.textContent = "";
       const email = form.email.value.trim(), password = form.password.value, pseudo = form.pseudo.value.trim();
+      if (mode === "forgot") {
+        if (!email) { errBox.textContent = "Entre l'e-mail de ton compte."; form.email.focus(); return; }
+        main.disabled = true;
+        try {
+          const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: appUrl() });
+          if (error) throw error;
+          okBox.textContent = "C'est envoyé ! Si un compte existe avec cet e-mail, tu vas recevoir un lien (pense à regarder dans les spams). Ouvre-le sur cet appareil pour choisir ton nouveau mot de passe.";
+        } catch (e) { errBox.textContent = authMsg(e); }
+        finally { main.disabled = false; }
+        return;
+      }
       if (mode === "signup" && !pseudo) { errBox.textContent = "Choisis un pseudo."; form.pseudo.focus(); return; }
       if (!email || password.length < 6) { errBox.textContent = "Entre ton e-mail et un mot de passe d'au moins 6 caractères."; return; }
       main.disabled = true;
@@ -215,9 +241,39 @@ function loginScreen(sb) {
       } catch (e) { errBox.textContent = authMsg(e); }
       finally { main.disabled = false; }
     });
-    wrap.querySelector(".login-local").addEventListener("click", () => {
-      try { localStorage.setItem(LOCAL_KEY, "1"); } catch (e) {}
-      wrap.remove(); resolve(null);
+  });
+}
+
+/* Après un clic sur le lien « mot de passe oublié » : choisir le nouveau mot de passe. */
+function newPasswordScreen(sb) {
+  return new Promise(resolve => {
+    const wrap = document.createElement("div");
+    wrap.className = "login";
+    wrap.innerHTML = `
+      <form class="login-card" novalidate>
+        <div class="login-mark" aria-hidden="true">🔑</div>
+        <h1>Nouveau mot de passe</h1>
+        <p class="login-intro">Choisis ton nouveau mot de passe (6 caractères minimum).</p>
+        <label class="login-field">Nouveau mot de passe<input name="p1" type="password" autocomplete="new-password" minlength="6" required></label>
+        <label class="login-field">Confirme-le<input name="p2" type="password" autocomplete="new-password" minlength="6" required></label>
+        <button class="login-main" type="submit">Enregistrer</button>
+        <p class="login-err" role="alert"></p>
+      </form>`;
+    document.body.append(wrap);
+    const form = wrap.querySelector("form"), errBox = wrap.querySelector(".login-err"), main = wrap.querySelector(".login-main");
+    form.p1.focus();
+    form.addEventListener("submit", async ev => {
+      ev.preventDefault(); errBox.textContent = "";
+      const p1 = form.p1.value, p2 = form.p2.value;
+      if (p1.length < 6) { errBox.textContent = "Le mot de passe doit faire au moins 6 caractères."; return; }
+      if (p1 !== p2) { errBox.textContent = "Les deux mots de passe ne sont pas identiques."; return; }
+      main.disabled = true;
+      try {
+        const { error } = await sb.auth.updateUser({ password: p1 });
+        if (error) throw error;
+        wrap.remove(); resolve(true);
+      } catch (e) { errBox.textContent = authMsg(e); }
+      finally { main.disabled = false; }
     });
   });
 }
@@ -231,17 +287,18 @@ function accountButton(label, onClick) {
 
 async function start() {
   if (!configured) { console.warn("Concentré : supabase-config.js n'est pas rempli, mode local."); return { db: null, user: null }; }
-  const sb = createClient(supabaseConfig.url, supabaseConfig.anonKey, { auth: { persistSession: true, autoRefreshToken: true } });
+  /* Le lien reçu par e-mail revient avec #access_token=…&type=recovery (ou #error=… s'il a expiré) : on le lit avant que Supabase ne l'efface. */
+  const hash = location.hash || "";
+  const recovery = /type=recovery/.test(hash);
+  const linkError = /error_code=|error=/.test(hash) && !/access_token=/.test(hash);
+  try { localStorage.removeItem(LOCAL_KEY); } catch (e) {}
+  const sb = createClient(supabaseConfig.url, supabaseConfig.anonKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
   const { data } = await sb.auth.getSession();
   let u = data.session ? data.session.user : null;
-  let skip = false; try { skip = localStorage.getItem(LOCAL_KEY) === "1"; } catch (e) {}
-  if (!u && (!skip || hasInvite())) u = await loginScreen(sb);
-  if (!u) {
-    accountButton("Se connecter", () => { try { localStorage.removeItem(LOCAL_KEY); } catch (e) {} location.reload(); });
-    return { db: null, user: null };
-  }
-  try { localStorage.removeItem(LOCAL_KEY); } catch (e) {}
-  accountButton("Déconnexion (" + displayName(u) + ")", async () => { await sb.auth.signOut(); try { localStorage.setItem(LOCAL_KEY, "1"); } catch (e) {} location.reload(); });
+  if (recovery || linkError) history.replaceState(null, "", location.pathname + location.search + "#focus");
+  if (recovery && u) { await newPasswordScreen(sb); window.__pousseToast = "Mot de passe modifié."; }
+  while (!u) u = await loginScreen(sb, linkError ? "Ce lien a expiré ou a déjà servi. Redemande un lien ci-dessous." : "");
+  accountButton("Déconnexion (" + displayName(u) + ")", async () => { await sb.auth.signOut(); location.reload(); });
   const user = makeUser(sb, u);
   return { db: makeDb(sb), user, feedback: makeFeedback(sb, { id: u.id, name: displayName(u) }) };
 }

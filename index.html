@@ -541,7 +541,10 @@ button:disabled{cursor:not-allowed}
 .login-card button{display:block;width:100%;font:inherit;font-weight:600;border-radius:12px;padding:12px 16px;cursor:pointer;margin-top:10px}
 .login-main{background:var(--leaf);color:#fff;border:0}
 .login-main:disabled{opacity:.6;cursor:wait}
-.login-local{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.login-card .login-link{display:inline-block;width:auto;margin:8px auto 0;padding:4px 6px;background:none;border:0;color:var(--leaf);font-size:.88rem;font-weight:600}
+.login-ok{color:var(--leaf)!important;font-weight:600;margin:12px 0 0!important}
+.login-forgot-intro{margin:0 0 6px!important}
+.login-ok:empty{display:none}
 .login-tabs{display:flex;gap:4px;padding:4px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);margin-bottom:14px}
 .login-tabs button{margin:0;padding:8px 10px;font-size:.9rem;border:0;background:transparent;color:var(--muted)}
 .login-tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
@@ -1333,7 +1336,7 @@ async function boot(){
   setInterval(()=>{renderLive();if(T.gid&&T.startAt&&busy()){renderGSessions();if(view==="groupes")renderGroups();}},1000);
   const use=n=>(window.claude&&typeof window.claude.use==="function")?Promise.resolve(window.claude.use(n)).catch(()=>null):Promise.resolve(null);
   const [db,user,fb]=await Promise.all([use("db"),use("user"),use("feedback")]);
-  S.user=user;
+  S.user=user;if(window.__pousseToast){toast(window.__pousseToast);window.__pousseToast=null;}
   if(fb){FB.api=fb;fb.isAdmin().then(a=>{FB.admin=a;renderFeedback();});fb.onChange(loadFeedback);loadFeedback();}
   renderFeedback();
   if(user){try{S.me=await user.me();S.myId=S.me.id;}catch(e){}}
