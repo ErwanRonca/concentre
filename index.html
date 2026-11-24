@@ -107,7 +107,8 @@ button:disabled{cursor:not-allowed}
 .time{font-family:var(--f-mono);font-weight:700;font-size:clamp(3.2rem,9vw,5rem);line-height:1;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
 .phase{font-weight:600;overflow-wrap:anywhere}
 .phase-sub{color:var(--muted);font-size:.9rem;min-height:1.4em}
-.with{display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--muted);min-height:24px}
+.with{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;font-size:.85rem;color:var(--muted);min-height:24px}
+.with .gs-people{justify-content:center;color:var(--text)}
 .actions{display:flex;gap:8px;flex-wrap:wrap}
 .btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:10px 16px;border-radius:10px;font-weight:600}
 .btn.sm{padding:6px 12px;font-size:.85rem;border-radius:8px}
@@ -180,6 +181,9 @@ button:disabled{cursor:not-allowed}
 .gs-top{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
 .gs-top b{font-family:var(--f-display);font-weight:700;overflow-wrap:anywhere}
 .gs-bot{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.gs-people{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.gs-people li{display:flex;align-items:center;gap:6px;padding:3px 10px 3px 3px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:13px}
+.gs-people .tag{font-size:11px;padding:1px 6px}
 .tag{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;font-weight:600;padding:2px 9px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
 .tag.cat::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c)}
 .tag.live{border-color:var(--tomato);color:var(--tomato)}
@@ -890,7 +894,7 @@ function renderTimer(full){
   renderWith();
 }
 function renderWith(){const box=$("with");box.replaceChildren();if(!busy()||!T.gid)return;const ids=participants();if(!ids.length)return;
-  box.append(el("span",{class:"avs"},...ids.slice(0,6).map(id=>avatar(id,"sm"))),el("span",{text:ids.length>1?("Vous êtes "+ids.length+" · "+(groupTomato(ids.length,T.min)?"+"+plural(groupTomato(ids.length,T.min),"tomate")+" de groupe et ":"")+"+"+Math.round(Math.min(.5,.1*(ids.length-1))*100)+" % d'XP"):"En attente des autres…"}));}
+  box.append(peopleList(S.groups[T.gid],ids),el("span",{text:ids.length>1?("Vous êtes "+ids.length+" · "+(groupTomato(ids.length,T.min)?"+"+plural(groupTomato(ids.length,T.min),"tomate")+" de groupe et ":"")+"+"+Math.round(Math.min(.5,.1*(ids.length-1))*100)+" % d'XP"):"En attente des autres…"}));}
 
 /* ---------- people ---------- */
 function allMembers(){const m=Object.assign({},S.members);m[meKey()]=myDoc;return m;}
@@ -951,13 +955,15 @@ function syncRoom(){
   const r=S.groups[T.gid];const now=Date.now();
   if(!r||!(r.members&&r.members[S.myId])){if(now-(T.since||0)>10000){toast("La salle a été fermée.");toIdle();}return;}
   if(r.startAt&&!T.startAt){
-    if(now>r.startAt+30000){toast("La session a démarré sans toi.");dbUpdate("groups/"+T.gid,{members:{[S.myId]:0}});toIdle();return;}
+    if(now>r.startAt+30000){toast("La session a démarré sans toi.");quitRoom(T.gid);toIdle();return;}
     Object.assign(T,{startAt:r.startAt,endAt:r.endAt,min:r.min,breakMin:r.breakMin,label:r.label||"",cat:r.cat||"perso"});saveT();chime(true);renderTimer(true);renderData();return;}
   if(!r.startAt&&(T.min!==r.min||T.breakMin!==r.breakMin||T.label!==(r.label||""))){Object.assign(T,{min:r.min,breakMin:r.breakMin,label:r.label||"",cat:r.cat||"perso"});saveT();renderTimer(true);}
 }
+/* Se retirer d'une salle (fonction leave_group : après coup on ne voit plus la salle, une mise à jour normale serait refusée). */
+function quitRoom(gid){if(canCloud()&&S.db.rpc)S.db.rpc("leave_group",{p_gid:gid}).catch(()=>{});}
 function leaveLobby(){
   const r=S.groups[T.gid];const gid=T.gid;toIdle();
-  if(!r)return;if(r.by===S.myId)closeRoom(gid);else dbUpdate("groups/"+gid,{members:{[S.myId]:0}});
+  if(!r)return;if(r.by===S.myId)closeRoom(gid);else quitRoom(gid);
 }
 /* Fermer une salle : on la marque fermée (les autres le voient en direct), puis on la supprime. */
 const closing=new Set();
@@ -982,10 +988,13 @@ function roomCard(){
   return el("div",{class:"gs"},
     el("div",{class:"gs-top"},el("b",{text:r.name||"Session de groupe"}),status),
     el("div",{class:"small"},r.min+" min de focus · "+roomBreak(r)+" min de pause"+(r.label?" · ":""),r.label?el("i",{text:r.label}):null," ",el("span",{class:"tag cat cat-"+(r.cat||"perso"),text:catName(r.cat)})),
-    el("div",{class:"gs-bot"},el("span",{class:"avs"},...ids.slice(0,8).map(id=>avatar(id,"sm"))),el("span",{class:"muted small",text:plural(ids.length,"participant")})),
+    el("div",{class:"gs-bot"},el("span",{class:"small",text:T.phase==="lobby"&&!T.startAt?"Dans la salle ("+ids.length+")":plural(ids.length,"participant")}),ids.length<MIN_ROOM&&!T.startAt?el("span",{class:"muted small",text:"en attente d'au moins "+MIN_ROOM+" personnes"}):null),
+    peopleList(r,ids),
     T.phase==="lobby"&&!T.startAt?el("div",{class:"durs-box"},durControl("focus",r.min,v=>setRoomDur("focus",v)),durControl("break",roomBreak(r),v=>setRoomDur("break",v))):null,
     T.phase==="lobby"&&!T.startAt?el("div",{class:"actions",style:"justify-content:flex-start"},...roomButtons()):null);
 }
+/* Qui est dans la salle : avatar + prénom, l'organisateur est signalé. */
+function peopleList(r,ids){return el("ul",{class:"gs-people"},...ids.map(id=>el("li",null,avatar(id,"sm"),el("span",{text:isMe(id)?"Toi":nameOf(id)}),r&&id===r.by?el("span",{class:"tag",text:"organise"}):null)));}
 const roomBreak=r=>r&&r.breakMin?clampMin("break",r.breakMin):breakMin();
 /* Réglage durée (focus ou pause) : raccourcis + −/saisie/+ ; utilisé pour la salle et avant de la créer. */
 function durControl(k,val,onSet,off){
