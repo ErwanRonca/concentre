@@ -926,7 +926,7 @@ let actx=null;
 function ensureAudio(){try{actx=actx||new(window.AudioContext||window.webkitAudioContext)();if(actx.resume&&actx.state!=="running")actx.resume().then(()=>{if(busy())renderTimer(true);},()=>{});}catch(e){}}
 /* Le navigateur n'autorise le son qu'après un geste : on le débloque au premier clic ou à la première touche (utile après un rechargement ou un lien d'invitation). */
 const soundLocked=()=>cfg.sound!==false&&(!actx||actx.state!=="running");
-["pointerdown","keydown"].forEach(ev=>document.addEventListener(ev,()=>{if(soundLocked()){ensureAudio();setTimeout(()=>{if(busy())renderTimer(true);},250);}},{capture:true,passive:true}));
+["pointerdown","keydown"].forEach(ev=>document.addEventListener(ev,()=>{if(soundLocked()){ensureAudio();setTimeout(()=>{if(busy())renderTimer(true);},250);}if(MU.blocked)unblockSound();else if(AM.ctx&&AM.ctx.state!=="running")AM.ctx.resume().catch(()=>{});},{capture:true,passive:true}));
 function soundButton(){return soundLocked()?el("button",{class:"btn",onclick:()=>{ensureAudio();setTimeout(()=>chime(true),150);},text:"Activer le son"}):null;}
 function chime(short){if(!actx||cfg.sound===false)return;try{const t=actx.currentTime;(short?[659.25,783.99]:[523.25,659.25,783.99,1046.5]).forEach((f,i)=>{const o=actx.createOscillator(),g=actx.createGain();o.type="sine";o.frequency.value=f;const s=t+i*.14;g.gain.setValueAtTime(.0001,s);g.gain.exponentialRampToValueAtTime(.22,s+.02);g.gain.exponentialRampToValueAtTime(.0001,s+.9);o.connect(g).connect(actx.destination);o.start(s);o.stop(s+1);});}catch(e){}}
 let wl=null;
@@ -1783,7 +1783,14 @@ function musicControls(src){const sp=src.k==="sp",ytList=src.k==="yt"&&!!src.lis
 function musicPlay(){MU.want=true;syncMusic();if(MU.sp){if(MU.spStarted)MU.sp.resume();else{MU.sp.play();MU.spStarted=true;}}if(MU.yt&&MU.yt.playVideo)MU.yt.playVideo();renderMusicCtl();}
 function musicPause(){MU.want=false;if(MU.sp)MU.sp.pause();if(MU.yt&&MU.yt.pauseVideo)MU.yt.pauseVideo();renderMusicCtl();}
 /* Appelé au début (true) et à la fin (false) d'un focus : seulement si « Lancer avec le pomodoro » est activé. */
-function musicAuto(on){if(cfg.musicAuto===false)return;try{on?musicPlay():musicPause();}catch(e){}try{on?ambPlayAll():ambStopAll();}catch(e){}}
+function musicAuto(on){if(cfg.musicAuto===false)return;try{on?musicPlay():musicPause();}catch(e){}try{on?ambPlayAll():ambStopAll();}catch(e){}
+  if(on)setTimeout(checkSoundBlocked,2500);else{MU.blocked=false;renderMusicCtl();}}
+/* Les navigateurs bloquent un son lancé sans clic récent sur la page : c'est le cas d'un invité arrivé par un lien,
+   qui attend sans cliquer pendant que le chef lance. On le détecte et on propose « Activer le son » (un clic suffit). */
+function checkSoundBlocked(){if(!busy()&&T.phase!=="focus")return;
+  const ambOff=ambSel().length>0&&AM.ctx&&AM.ctx.state!=="running",musOff=MU.want&&!!currentSrc()&&!MU.playing;
+  if(ambOff||musOff){MU.blocked=true;renderMusicCtl();toast("Ton navigateur a bloqué le son : clique n'importe où sur la page (ou sur « Activer le son ») pour l'entendre.");}}
+function unblockSound(){MU.blocked=false;try{if(AM.ctx)AM.ctx.resume().catch(()=>{});}catch(e){}if(MU.want)musicPlay();ambPlayAll();renderMusicCtl();}
 function syncMusic(){try{mountPlayer(currentSrc());}catch(e){}}
 function saveMusic(raw){const s=parseMusic(raw);if(raw&&!s){toast("Lien non reconnu : colle un lien de playlist Spotify ou YouTube.");return false;}
   cfg.music=null;saveCfg();MU.editing=false;whenReady(()=>{myDoc.music=s||null;store.set("pousse.musicOnAccount",1);persist();syncMusic();renderMusicCtl();});
@@ -1792,6 +1799,7 @@ function saveMusic(raw){const s=parseMusic(raw);if(raw&&!s){toast("Lien non reco
 function renderMusicCtl(){const box=$("music-ctl");if(!box)return;
   const a=document.activeElement;if(a&&a.closest&&a.closest("#music-ctl")&&a.tagName==="INPUT"&&(a.type==="text"||a.type==="range"))return;
   const own=ownMusic(),rm=roomMusic(),parts=[];
+  if(MU.blocked)parts.push(el("button",{class:"btn green",onclick:unblockSound,text:"Activer le son"}),el("p",{class:"muted small",style:"margin:0",text:"Ton navigateur a bloqué le démarrage automatique : un clic suffit."}));
   $("music-state").textContent=MU.playing&&currentSrc()?(busy()?"en lecture avec ton focus":"en lecture"):"";
   if(rm)parts.push(el("div",{class:"seg",role:"group","aria-label":"Musique en session de groupe"},...[["room","Musique de la salle"],["mine","La mienne"],["off","Aucune"]].map(([k,t])=>el("button",{"aria-pressed":String((cfg.musicRoom||"room")===k),onclick:()=>{cfg.musicRoom=k;saveCfg();syncMusic();if(MU.want)musicPlay();renderMusicCtl();},text:t}))),
     el("p",{class:"muted small",style:"margin:0",text:"Musique choisie par le chef : "+srcLabel(rm).toLowerCase()+"."}));
@@ -1816,7 +1824,8 @@ const AM={ctx:null,bufs:{},loading:{},nodes:{},last:0};
 const ambSel=()=>(Array.isArray(cfg.ambOn)?cfg.ambOn:[]).filter(id=>AMBS.some(a=>a.id===id));
 const ambVol=id=>{const v=(cfg.ambVol||{})[id];return v==null?60:Math.max(0,Math.min(100,+v));};
 const ambPlaying=()=>Object.keys(AM.nodes).length>0;
-function ambCtx(){if(!AM.ctx){const C=window.AudioContext||window.webkitAudioContext;AM.ctx=new C();}if(AM.ctx.state!=="running")AM.ctx.resume().catch(()=>{});return AM.ctx;}
+function ambCtx(){if(!AM.ctx){const C=window.AudioContext||window.webkitAudioContext;AM.ctx=new C();
+    /* iPhone : sans ça, le bouton silencieux coupe les ambiances */try{if(navigator.audioSession)navigator.audioSession.type="playback";}catch(e){}}if(AM.ctx.state!=="running")AM.ctx.resume().catch(()=>{});return AM.ctx;}
 /* Charge le son et prépare une boucle parfaite : les 2 dernières secondes sont fondues dans les 2 premières. */
 function ambBuffer(a){if(AM.bufs[a.id])return Promise.resolve(AM.bufs[a.id]);if(AM.loading[a.id])return AM.loading[a.id];
   const ctx=ambCtx();
