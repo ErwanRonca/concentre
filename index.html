@@ -100,13 +100,18 @@ button:disabled{cursor:not-allowed}
 .music-form input{flex:1 1 200px;min-width:0;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--ink);font:inherit;font-size:.88rem}
 .music-row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .amb-box{display:flex;flex-direction:column;gap:8px;padding-top:4px;border-top:1px solid var(--line)}
-.amb-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.amb-item{display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--surface-2)}
+.amb-box .link:disabled{opacity:.4;cursor:default;text-decoration:none}
+.amb-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:1fr;gap:8px}
+.amb-item{cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;gap:6px;min-height:68px;box-sizing:border-box;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--surface-2)}
+/* tuiles de taille fixe : le nom tient sur 2 lignes max, le curseur garde sa place même éteint (invisible) */
+.amb-btn{min-height:2.5em;align-items:flex-start;line-height:1.25}
+.amb-btn .amb-dot{margin-top:.25em}
 .amb-item.on{border-color:var(--leaf)}
 .amb-btn{display:flex;align-items:center;gap:8px;border:0;background:none;color:var(--ink);font:inherit;font-size:.86rem;font-weight:600;padding:0;cursor:pointer;text-align:left}
 .amb-dot{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--muted);flex:none}
 .amb-item.on .amb-dot{background:var(--leaf);border-color:var(--leaf)}
-.amb-item input[type=range]{width:100%;accent-color:var(--leaf)}
+.amb-item input[type=range]{width:100%;accent-color:var(--leaf);margin:0}
+.amb-item:not(.on) input[type=range]{visibility:hidden}
 #amb-stats[hidden]{display:none}
 .music-ctrls{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}
 .mb-group{display:flex;align-items:center;gap:6px}
@@ -1796,11 +1801,14 @@ function saveMusic(raw){const s=parseMusic(raw);if(raw&&!s){toast("Lien non reco
   cfg.music=null;saveCfg();MU.editing=false;whenReady(()=>{myDoc.music=s||null;store.set("pousse.musicOnAccount",1);persist();syncMusic();renderMusicCtl();});
   const r=myRoom();if(r&&isChef(r)&&!T.startAt)dbUpdate("groups/"+T.gid,{music:s||null});
   syncMusic();renderMusicCtl();toast(s?srcLabel(s)+" enregistrée.":"Musique retirée.");return true;}
-function renderMusicCtl(){const box=$("music-ctl");if(!box)return;
-  const a=document.activeElement;if(a&&a.closest&&a.closest("#music-ctl")&&a.tagName==="INPUT"&&(a.type==="text"||a.type==="range"))return;
+function renderMusicCtl(force){const box=$("music-ctl");if(!box)return;
+  const a=document.activeElement;if(!force&&a&&a.closest&&a.closest("#music-ctl")&&a.tagName==="INPUT"&&(a.type==="text"||a.type==="range"))return;
   const own=ownMusic(),rm=roomMusic(),parts=[];
-  if(MU.blocked)parts.push(el("button",{class:"btn green",onclick:unblockSound,text:"Activer le son"}),el("p",{class:"muted small",style:"margin:0",text:"Ton navigateur a bloqué le démarrage automatique : un clic suffit."}));
+  /* Ne redessiner que si quelque chose a changé : un rendu pendant un clic ferait perdre ce clic. */
+  const sig=JSON.stringify([srcKey(own),srcKey(rm),srcKey(validSrc(currentSrc())),MU.blocked,MU.playing,MU.editing,!!(MU.sp||MU.yt),cfg.musicRoom,cfg.musicAuto,busy(),Object.keys(AM.nodes).map(k=>k+(AM.nodes[k].pending?"?":"")).sort()]);
   $("music-state").textContent=MU.playing&&currentSrc()?(busy()?"en lecture avec ton focus":"en lecture"):"";
+  if(!force&&sig===MU.sig&&box.childElementCount)return;MU.sig=sig;
+  if(MU.blocked)parts.push(el("button",{class:"btn green",onclick:unblockSound,text:"Activer le son"}),el("p",{class:"muted small",style:"margin:0",text:"Ton navigateur a bloqué le démarrage automatique : un clic suffit."}));
   if(rm)parts.push(el("div",{class:"seg",role:"group","aria-label":"Musique en session de groupe"},...[["room","Musique de la salle"],["mine","La mienne"],["off","Aucune"]].map(([k,t])=>el("button",{"aria-pressed":String((cfg.musicRoom||"room")===k),onclick:()=>{cfg.musicRoom=k;saveCfg();syncMusic();if(MU.want)musicPlay();renderMusicCtl();},text:t}))),
     el("p",{class:"muted small",style:"margin:0",text:"Musique choisie par le chef : "+srcLabel(rm).toLowerCase()+"."}));
   if(!own||MU.editing){const inp=el("input",{type:"text",placeholder:"Lien d'une playlist Spotify ou YouTube","aria-label":"Lien de ta playlist",value:own&&MU.editing?"":""});
@@ -1835,17 +1843,17 @@ function ambBuffer(a){if(AM.bufs[a.id])return Promise.resolve(AM.bufs[a.id]);if(
       for(let k=0;k<X;k++){const t=k/X;o[k]=i[k]*Math.sin(t*Math.PI/2)+i[L+k]*Math.cos(t*Math.PI/2);}}
     AM.bufs[a.id]=out;delete AM.loading[a.id];return out;}).catch(e=>{delete AM.loading[a.id];throw e;});}
 async function ambStart(id){const a=AMBS.find(x=>x.id===id);if(!a||AM.nodes[id])return;const ctx=ambCtx();
-  AM.nodes[id]={pending:true};renderMusicCtl();
+  AM.nodes[id]={pending:true};renderMusicCtl(true);
   try{const buf=await ambBuffer(a);if(!AM.nodes[id]||!AM.nodes[id].pending)return;
     const src=ctx.createBufferSource(),g=ctx.createGain();src.buffer=buf;src.loop=true;
     g.gain.setValueAtTime(0,ctx.currentTime);g.gain.linearRampToValueAtTime(ambVol(id)/100,ctx.currentTime+1.5);
     src.connect(g).connect(ctx.destination);src.start(0,Math.random()*Math.max(0,buf.duration-5));/* départ au hasard dans la boucle */
     AM.nodes[id]={src,g};ambCount(id,true);}
   catch(e){console.error("Ambiance",id,e);delete AM.nodes[id];toast("Impossible de charger l'ambiance « "+a.name+" ».");}
-  renderMusicCtl();}
+  renderMusicCtl(true);}
 function ambStop(id){const n=AM.nodes[id];if(!n)return;ambTick();delete AM.nodes[id];
   if(n.src){const ctx=AM.ctx,t=ctx.currentTime;n.g.gain.cancelScheduledValues(t);n.g.gain.setValueAtTime(n.g.gain.value,t);n.g.gain.linearRampToValueAtTime(0,t+1);n.src.stop(t+1.1);}
-  renderMusicCtl();}
+  renderMusicCtl(true);}
 function ambPlayAll(){ambSel().forEach(ambStart);}
 function ambStopAll(){Object.keys(AM.nodes).forEach(ambStop);}
 /* Cliquer une ambiance : la sélectionne et la lance, ou l'arrête et la retire. */
@@ -1860,9 +1868,9 @@ function ambTick(){const now=Date.now(),dt=AM.last?Math.min(120,(now-AM.last)/10
 setInterval(()=>{if(ambPlaying())ambTick();else AM.last=0;},30000);
 window.addEventListener("pagehide",()=>{if(ambPlaying()){ambTick();persist();}});
 function ambSection(){const sel=ambSel();
-  return el("div",{class:"amb-box"},el("div",{class:"music-row"},el("b",{class:"small",text:"Ambiances"}),ambPlaying()?el("button",{class:"link small",onclick:()=>ambStopAll(),text:"Tout couper"}):el("span",{class:"muted small",text:"se mélangent avec ta musique"})),
+  return el("div",{class:"amb-box"},el("div",{class:"music-row",style:"flex-wrap:nowrap"},el("b",{class:"small",text:"Ambiances"}),el("button",{class:"link small",disabled:!ambPlaying(),onclick:()=>ambStopAll(),text:"Tout couper"})),el("span",{class:"muted small",style:"margin-top:-6px",text:"Elles se mélangent avec ta musique."}),
     el("div",{class:"amb-grid"},...AMBS.map(a=>{const n=AM.nodes[a.id],on=!!n;const vol=el("input",{type:"range",min:"0",max:"100",step:"1","aria-label":"Volume "+a.name});vol.value=String(ambVol(a.id));vol.addEventListener("input",()=>ambSetVol(a.id,+vol.value));
-      return el("div",{class:"amb-item"+(on?" on":"")},el("button",{type:"button",class:"amb-btn","aria-pressed":String(on),onclick:()=>ambToggle(a.id)},el("span",{class:"amb-dot"}),a.name+(n&&n.pending?" …":"")),on?vol:null);})));}
+      return el("div",{class:"amb-item"+(on?" on":""),onclick:e=>{if(e.target.closest("input"))return;ambToggle(a.id);}},el("button",{type:"button",class:"amb-btn","aria-pressed":String(on)},el("span",{class:"amb-dot"}),a.name+(n&&n.pending?" …":"")),vol);})));}
 /* Carte admin : statistiques d'écoute des ambiances, tous comptes confondus. */
 function renderAmbStats(){const box=$("amb-stats");if(!box)return;box.hidden=!FB.admin;if(!FB.admin)return;
   const m=allMembers();const rows=AMBS.map(a=>{let users=0,plays=0,sec=0;for(const d of Object.values(m)){const s=d&&d.ambStats&&d.ambStats[a.id];if(s&&(s.s>0||s.n>0)){users++;plays+=s.n||0;sec+=s.s||0;}}return{a,users,plays,sec};}).sort((x,y)=>y.sec-x.sec);
