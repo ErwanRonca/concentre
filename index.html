@@ -92,12 +92,22 @@ button:disabled{cursor:not-allowed}
 .grid>.music-card{grid-column:1}
 .grid>aside.side{grid-row:span 2}
 @media (max-width:860px){.grid>aside.side{grid-row:auto}}
-@media (min-width:1700px){.music-card{position:fixed;top:96px;left:calc(50vw - 550px - 310px);width:290px;max-height:calc(100vh - 120px);overflow:auto;z-index:2}}
+/* Dans la marge de gauche seulement s'il y a vraiment la place (1100 px de contenu + 280 px de carte + marges) ; sinon sous le minuteur. */
+@media (min-width:1780px){.music-card{position:fixed;top:96px;left:calc(50vw - 550px - 310px);width:280px;box-sizing:border-box;max-height:calc(100vh - 120px);overflow:auto;z-index:2}}
 .music-player:empty{display:none}
 .music-player iframe{width:100%;border:0;border-radius:12px;display:block}
 .music-form{display:flex;gap:8px;flex-wrap:wrap}
 .music-form input{flex:1 1 200px;min-width:0;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--ink);font:inherit;font-size:.88rem}
 .music-row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.amb-box{display:flex;flex-direction:column;gap:8px;padding-top:4px;border-top:1px solid var(--line)}
+.amb-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.amb-item{display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--surface-2)}
+.amb-item.on{border-color:var(--leaf)}
+.amb-btn{display:flex;align-items:center;gap:8px;border:0;background:none;color:var(--ink);font:inherit;font-size:.86rem;font-weight:600;padding:0;cursor:pointer;text-align:left}
+.amb-dot{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--muted);flex:none}
+.amb-item.on .amb-dot{background:var(--leaf);border-color:var(--leaf)}
+.amb-item input[type=range]{width:100%;accent-color:var(--leaf)}
+#amb-stats[hidden]{display:none}
 .music-ctrls{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}
 .mb-group{display:flex;align-items:center;gap:6px}
 .mbtn{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
@@ -459,6 +469,7 @@ button:disabled{cursor:not-allowed}
     <div class="settings">
       <h2>Réglages</h2>
       <div class="card" id="inventory"></div>
+      <div class="card" id="amb-stats" hidden></div>
       <div class="card">
         <h3>Apparence</h3>
         <div class="seg seg-lg" role="group" aria-label="Thème" id="set-theme">
@@ -1574,7 +1585,7 @@ function renderProfile(){
   box.replaceChildren(head,recap,two,cats,badges);
 }
 function renderData(){
-  syncMusic();renderMusicCtl();if(view==="boutique")renderShop();if(view==="reglages")renderInventory();updateGuildDot();renderMeChip();renderGoal();renderGarden();renderLive();renderGSessions();renderChallenge($("challenge-a"));renderChallenge($("challenge-b"));
+  syncMusic();renderMusicCtl();if(view==="boutique")renderShop();if(view==="reglages"){renderInventory();renderAmbStats();}updateGuildDot();renderMeChip();renderGoal();renderGarden();renderLive();renderGSessions();renderChallenge($("challenge-a"));renderChallenge($("challenge-b"));
   renderBoard($("mini-board"),"week",Object.keys(allMembers()),5);renderScope();if(S.boardWho==="guilds")renderGuildBoard($("board"),S.boardMode);else renderBoard($("board"),S.boardMode,scopeIds());renderPodium();
   $("bm-week").setAttribute("aria-pressed",String(S.boardMode==="week"));$("bm-all").setAttribute("aria-pressed",String(S.boardMode==="all"));
   renderFeed();if(view==="groupes")renderGroups();if(view==="profil")renderProfile();renderWith();
@@ -1664,7 +1675,7 @@ function applyTheme(t){
   const m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute("content",dark?"#151515":"#2D7A4C");
   renderSettings();lastPlantKey="";renderTimer(true);
 }
-function renderSettings(){renderDur();renderInventory();
+function renderSettings(){renderDur();renderInventory();renderAmbStats();
   const t=themeChoice();
   document.querySelectorAll("#set-theme button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.themeChoice===t)));
   $("strict").checked=!!cfg.strict;$("sound").checked=cfg.sound!==false;$("autobreak").checked=cfg.autoBreak!==false;
@@ -1737,7 +1748,7 @@ const musicVol=()=>cfg.musicVol==null?70:Math.max(0,Math.min(100,+cfg.musicVol||
 function mountPlayer(src){const key=srcKey(src);if(key===MU.key)return;MU.key=key;MU.sp=null;MU.yt=null;MU.spStarted=false;MU.playing=false;
   const box=$("music-player");if(!box)return;box.replaceChildren();if(!src)return;const host=el("div");box.append(host);
   if(src.k==="sp")spApi().then(api=>{if(MU.key!==key)return;api.createController(host,{uri:"spotify:"+src.type+":"+src.id,width:"100%",height:src.type==="track"||src.type==="episode"?152:352},c=>{if(MU.key!==key)return;MU.sp=c;
-    c.addListener("playback_update",e=>{const d=e&&e.data;if(d){if(!d.isPaused)MU.spStarted=true;setPlaying(!d.isPaused);}});
+    c.addListener("playback_update",e=>{const d=e&&e.data;if(d){if(!d.isPaused)MU.spStarted=true;MU.spPos=d.position||0;MU.spDur=d.duration||0;setPlaying(!d.isPaused);}});
     if(MU.want){c.play();MU.spStarted=true;}renderMusicCtl();});});
   else ytApi().then(YT=>{if(MU.key!==key||!YT)return;MU.yt=new YT.Player(host,{width:"100%",height:"200",videoId:src.v||undefined,
     playerVars:Object.assign({playsinline:1,rel:0},src.list?{listType:"playlist",list:src.list}:{}),
@@ -1746,7 +1757,11 @@ function mountPlayer(src){const key=srcKey(src);if(key===MU.key)return;MU.key=ke
    Le lecteur Spotify intégré ne permet pas de changer de morceau ni de volume depuis la page : « précédent » revient au début du titre. */
 function musicToggle(){if(MU.playing)musicPause();else musicPlay();}
 function musicPrev(){if(MU.yt&&MU.yt.previousVideo){const s=validSrc(currentSrc());if(s&&s.list)MU.yt.previousVideo();else MU.yt.seekTo(0,true);}else if(MU.sp)MU.sp.seek(0);}
-function musicNext(){if(MU.yt&&MU.yt.nextVideo)MU.yt.nextVideo();}
+/* Suivant : morceau suivant d'une playlist YouTube ; sinon (vidéo seule, Spotify) on avance de 30 s dans le titre. */
+function musicNext(){const s=validSrc(currentSrc());
+  if(MU.yt&&s&&s.list&&MU.yt.nextVideo){MU.yt.nextVideo();return;}
+  if(MU.yt&&MU.yt.seekTo){const t=(MU.yt.getCurrentTime?MU.yt.getCurrentTime():0)+30,d=MU.yt.getDuration?MU.yt.getDuration():0;MU.yt.seekTo(d?Math.min(t,Math.max(0,d-1)):t,true);return;}
+  if(MU.sp){const t=((MU.spPos||0)+30000)/1000,d=(MU.spDur||0)/1000;MU.sp.seek(d?Math.min(t,Math.max(0,d-1)):t);}}
 function musicSetVol(v){cfg.musicVol=Math.max(0,Math.min(100,Math.round(v)));saveCfg();if(MU.yt&&MU.yt.setVolume){MU.yt.setVolume(cfg.musicVol);if(cfg.musicVol>0&&MU.yt.unMute)MU.yt.unMute();}}
 const ICO={prev:'<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>',
   next:'<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>',
@@ -1754,19 +1769,21 @@ const ICO={prev:'<svg width="18" height="18" viewBox="0 0 24 24" fill="currentCo
   pause:'<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>',
   vol:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>'};
 function musicControls(src){const sp=src.k==="sp",ytList=src.k==="yt"&&!!src.list,ready=!!(MU.sp||MU.yt);
-  const b=(ico,label,fn,dis,cls)=>{const x=el("button",{type:"button",class:"mbtn"+(cls?" "+cls:""),"aria-label":label,title:label,disabled:!ready||!!dis,onclick:fn});x.append(svg(ico));return x;};
-  const vol=el("input",{type:"range",min:"0",max:"100",step:"1","aria-label":"Volume",disabled:sp||!ready,title:sp?"Le volume du lecteur Spotify se règle avec celui de ton appareil":"Volume"});vol.value=String(sp?100:musicVol());
+  const b=(ico,label,fn,cls)=>{const x=el("button",{type:"button",class:"mbtn"+(cls?" "+cls:""),"aria-label":label,title:label,disabled:!ready,onclick:fn});x.append(svg(ico));return x;};
+  const play=b(MU.playing?ICO.pause:ICO.play,MU.playing?"Pause":"Lecture",musicToggle,"main");
+  /* Spotify : le lecteur intégré ne laisse ni passer un titre ni régler le son depuis la page ; on ne montre que ce qui marche
+     et on propose d'ouvrir la playlist dans l'app Spotify, où tout se contrôle. */
+  if(sp)return el("div",{class:"music-ctrls"},el("div",{class:"mb-group"},b(ICO.prev,"Revenir au début du titre",musicPrev),play,b(ICO.next,"Avancer de 30 s",musicNext)),
+    el("a",{class:"link small",href:"https://open.spotify.com/"+src.type+"/"+src.id,target:"_blank",rel:"noopener",text:"Ouvrir dans Spotify ↗"}));
+  const vol=el("input",{type:"range",min:"0",max:"100",step:"1","aria-label":"Volume",disabled:!ready});vol.value=String(musicVol());
   vol.addEventListener("input",()=>musicSetVol(+vol.value));
   return el("div",{class:"music-ctrls"},
-    el("div",{class:"mb-group"},b(ICO.prev,sp?"Revenir au début du titre":ytList?"Précédent":"Revenir au début",musicPrev),
-      b(MU.playing?ICO.pause:ICO.play,MU.playing?"Pause":"Lecture",musicToggle,false,"main"),
-      b(ICO.next,sp?"Suivant : utilise la flèche du lecteur Spotify":"Suivant",musicNext,!ytList)),
-    el("label",{class:"mvol"},svg(ICO.vol),vol),
-    sp?el("p",{class:"muted small",style:"margin:0;width:100%",text:"Spotify : morceaux en entier seulement si tu es connecté sur open.spotify.com dans ce navigateur (sinon extraits de 30 s). Pour changer de morceau, utilise les flèches du lecteur ; le volume se règle sur ton appareil."}):null);}
+    el("div",{class:"mb-group"},b(ICO.prev,ytList?"Précédent":"Revenir au début",musicPrev),play,b(ICO.next,ytList?"Suivant":"Avancer de 30 s",musicNext)),
+    el("label",{class:"mvol"},svg(ICO.vol),vol));}
 function musicPlay(){MU.want=true;syncMusic();if(MU.sp){if(MU.spStarted)MU.sp.resume();else{MU.sp.play();MU.spStarted=true;}}if(MU.yt&&MU.yt.playVideo)MU.yt.playVideo();renderMusicCtl();}
 function musicPause(){MU.want=false;if(MU.sp)MU.sp.pause();if(MU.yt&&MU.yt.pauseVideo)MU.yt.pauseVideo();renderMusicCtl();}
 /* Appelé au début (true) et à la fin (false) d'un focus : seulement si « Lancer avec le pomodoro » est activé. */
-function musicAuto(on){if(cfg.musicAuto===false)return;try{on?musicPlay():musicPause();}catch(e){}}
+function musicAuto(on){if(cfg.musicAuto===false)return;try{on?musicPlay():musicPause();}catch(e){}try{on?ambPlayAll():ambStopAll();}catch(e){}}
 function syncMusic(){try{mountPlayer(currentSrc());}catch(e){}}
 function saveMusic(raw){const s=parseMusic(raw);if(raw&&!s){toast("Lien non reconnu : colle un lien de playlist Spotify ou YouTube.");return false;}
   cfg.music=null;saveCfg();MU.editing=false;whenReady(()=>{myDoc.music=s||null;store.set("pousse.musicOnAccount",1);persist();syncMusic();renderMusicCtl();});
@@ -1777,17 +1794,74 @@ function renderMusicCtl(){const box=$("music-ctl");if(!box)return;
   const own=ownMusic(),rm=roomMusic(),parts=[];
   $("music-state").textContent=MU.playing&&currentSrc()?(busy()?"en lecture avec ton focus":"en lecture"):"";
   if(rm)parts.push(el("div",{class:"seg",role:"group","aria-label":"Musique en session de groupe"},...[["room","Musique de la salle"],["mine","La mienne"],["off","Aucune"]].map(([k,t])=>el("button",{"aria-pressed":String((cfg.musicRoom||"room")===k),onclick:()=>{cfg.musicRoom=k;saveCfg();syncMusic();if(MU.want)musicPlay();renderMusicCtl();},text:t}))),
-    el("p",{class:"muted small",style:"margin:0",text:"Le chef de salle a choisi une "+srcLabel(rm).toLowerCase()+" pour la session."+(rm.k==="sp"&&(cfg.musicRoom||"room")==="room"?" Connecte-toi sur open.spotify.com dans ce navigateur pour l'écouter en entier (sinon : extraits de 30 s).":"")}));
+    el("p",{class:"muted small",style:"margin:0",text:"Musique choisie par le chef : "+srcLabel(rm).toLowerCase()+"."}));
   if(!own||MU.editing){const inp=el("input",{type:"text",placeholder:"Lien d'une playlist Spotify ou YouTube","aria-label":"Lien de ta playlist",value:own&&MU.editing?"":""});
     const go=()=>saveMusic(inp.value);inp.addEventListener("keydown",e=>{if(e.key==="Enter")go();});
     parts.push(el("div",{class:"music-form"},inp,el("button",{class:"btn sm green",onclick:go,text:"Enregistrer"}),MU.editing?el("button",{class:"btn sm",onclick:()=>{MU.editing=false;renderMusicCtl();},text:"Annuler"}):null),
-      el("p",{class:"muted small",style:"margin:0",text:"Spotify : morceaux en entier si tu es connecté à Spotify dans ce navigateur, sinon extraits de 30 s. YouTube : tout, sans compte."}));}
+      el("p",{class:"muted small",style:"margin:0",text:"YouTube : tout se contrôle d'ici. Spotify : extraits de 30 s si tu n'es pas connecté à open.spotify.com dans ce navigateur."}));}
   else parts.push(el("div",{class:"music-row"},el("span",{class:"small",text:"Ta musique : "+srcLabel(own)}),
     el("span",null,el("button",{class:"link small",onclick:()=>{MU.editing=true;renderMusicCtl();},text:"Changer"})," · ",el("button",{class:"link small",onclick:()=>saveMusic(""),text:"Retirer"}))));
   const cur=validSrc(currentSrc());if(cur)parts.push(musicControls(cur));
   const cb=el("input",{type:"checkbox"});cb.checked=cfg.musicAuto!==false;cb.addEventListener("change",()=>{cfg.musicAuto=cb.checked;saveCfg();});
-  parts.push(el("label",{class:"small",style:"display:flex;align-items:center;gap:8px"},cb,"Lancer la musique avec le pomodoro, l'arrêter à la fin"));
+  parts.push(ambSection());
+  parts.push(el("label",{class:"small",style:"display:flex;align-items:center;gap:8px"},cb,"Démarrer et arrêter avec le pomodoro"));
   box.replaceChildren(...parts);}
+
+/* ---------- ambiances ----------
+   Vrais enregistrements CC0 (dossier sons/, voir sons/LICENCE.txt), joués en boucle sans coupure par le moteur audio
+   du navigateur : la fin de chaque son est fondue dans son début. Volume par ambiance, mélange possible,
+   démarrage et arrêt avec le pomodoro (même réglage que la playlist). On compte le temps d'écoute pour les statistiques. */
+const AMBS=[{id:"pluie",name:"Pluie",file:"sons/pluie.mp3"},{id:"feu",name:"Feu de cheminée",file:"sons/feu.mp3"},{id:"vagues",name:"Vagues",file:"sons/vagues.mp3"},{id:"foret",name:"Forêt",file:"sons/foret.mp3"}];
+const AM={ctx:null,bufs:{},loading:{},nodes:{},last:0};
+const ambSel=()=>(Array.isArray(cfg.ambOn)?cfg.ambOn:[]).filter(id=>AMBS.some(a=>a.id===id));
+const ambVol=id=>{const v=(cfg.ambVol||{})[id];return v==null?60:Math.max(0,Math.min(100,+v));};
+const ambPlaying=()=>Object.keys(AM.nodes).length>0;
+function ambCtx(){if(!AM.ctx){const C=window.AudioContext||window.webkitAudioContext;AM.ctx=new C();}if(AM.ctx.state!=="running")AM.ctx.resume().catch(()=>{});return AM.ctx;}
+/* Charge le son et prépare une boucle parfaite : les 2 dernières secondes sont fondues dans les 2 premières. */
+function ambBuffer(a){if(AM.bufs[a.id])return Promise.resolve(AM.bufs[a.id]);if(AM.loading[a.id])return AM.loading[a.id];
+  const ctx=ambCtx();
+  return AM.loading[a.id]=fetch(a.file).then(r=>{if(!r.ok)throw new Error("son");return r.arrayBuffer();}).then(b=>new Promise((ok,ko)=>ctx.decodeAudioData(b,ok,ko))).then(src=>{
+    const X=Math.min(Math.floor(src.sampleRate*2),Math.floor(src.length/4)),L=src.length-X;const out=ctx.createBuffer(src.numberOfChannels,L,src.sampleRate);
+    for(let c=0;c<src.numberOfChannels;c++){const i=src.getChannelData(c),o=out.getChannelData(c);o.set(i.subarray(0,L));
+      for(let k=0;k<X;k++){const t=k/X;o[k]=i[k]*Math.sin(t*Math.PI/2)+i[L+k]*Math.cos(t*Math.PI/2);}}
+    AM.bufs[a.id]=out;delete AM.loading[a.id];return out;}).catch(e=>{delete AM.loading[a.id];throw e;});}
+async function ambStart(id){const a=AMBS.find(x=>x.id===id);if(!a||AM.nodes[id])return;const ctx=ambCtx();
+  AM.nodes[id]={pending:true};renderMusicCtl();
+  try{const buf=await ambBuffer(a);if(!AM.nodes[id]||!AM.nodes[id].pending)return;
+    const src=ctx.createBufferSource(),g=ctx.createGain();src.buffer=buf;src.loop=true;
+    g.gain.setValueAtTime(0,ctx.currentTime);g.gain.linearRampToValueAtTime(ambVol(id)/100,ctx.currentTime+1.5);
+    src.connect(g).connect(ctx.destination);src.start(0,Math.random()*Math.max(0,buf.duration-5));/* départ au hasard dans la boucle */
+    AM.nodes[id]={src,g};ambCount(id,true);}
+  catch(e){console.error("Ambiance",id,e);delete AM.nodes[id];toast("Impossible de charger l'ambiance « "+a.name+" ».");}
+  renderMusicCtl();}
+function ambStop(id){const n=AM.nodes[id];if(!n)return;ambTick();delete AM.nodes[id];
+  if(n.src){const ctx=AM.ctx,t=ctx.currentTime;n.g.gain.cancelScheduledValues(t);n.g.gain.setValueAtTime(n.g.gain.value,t);n.g.gain.linearRampToValueAtTime(0,t+1);n.src.stop(t+1.1);}
+  renderMusicCtl();}
+function ambPlayAll(){ambSel().forEach(ambStart);}
+function ambStopAll(){Object.keys(AM.nodes).forEach(ambStop);}
+/* Cliquer une ambiance : la sélectionne et la lance, ou l'arrête et la retire. */
+function ambToggle(id){const sel=ambSel();
+  if(AM.nodes[id]){cfg.ambOn=sel.filter(x=>x!==id);saveCfg();ambStop(id);return;}
+  if(!sel.includes(id)){cfg.ambOn=[...sel,id];saveCfg();}ambStart(id);}
+function ambSetVol(id,v){cfg.ambVol=Object.assign({},cfg.ambVol,{[id]:Math.round(v)});saveCfg();const n=AM.nodes[id];if(n&&n.g)n.g.gain.setTargetAtTime(v/100,AM.ctx.currentTime,.08);}
+/* Statistiques : nombre de lancements et secondes d'écoute réelle par ambiance, gardés avec le profil (ambStats). */
+function ambCount(id,start){whenReady(()=>{const st=Object.assign({},myDoc.ambStats);const s=Object.assign({n:0,s:0},st[id]);if(start)s.n++;st[id]=s;myDoc.ambStats=st;persistSoon();});AM.last=Date.now();}
+function ambTick(){const now=Date.now(),dt=AM.last?Math.min(120,(now-AM.last)/1000):0;AM.last=now;const ids=Object.keys(AM.nodes).filter(id=>AM.nodes[id].src);if(!ids.length||!dt)return;
+  whenReady(()=>{const st=Object.assign({},myDoc.ambStats);ids.forEach(id=>{const s=Object.assign({n:0,s:0},st[id]);s.s=Math.round(s.s+dt);st[id]=s;});myDoc.ambStats=st;persistSoon();});}
+setInterval(()=>{if(ambPlaying())ambTick();else AM.last=0;},30000);
+window.addEventListener("pagehide",()=>{if(ambPlaying()){ambTick();persist();}});
+function ambSection(){const sel=ambSel();
+  return el("div",{class:"amb-box"},el("div",{class:"music-row"},el("b",{class:"small",text:"Ambiances"}),ambPlaying()?el("button",{class:"link small",onclick:()=>ambStopAll(),text:"Tout couper"}):el("span",{class:"muted small",text:"se mélangent avec ta musique"})),
+    el("div",{class:"amb-grid"},...AMBS.map(a=>{const n=AM.nodes[a.id],on=!!n;const vol=el("input",{type:"range",min:"0",max:"100",step:"1","aria-label":"Volume "+a.name});vol.value=String(ambVol(a.id));vol.addEventListener("input",()=>ambSetVol(a.id,+vol.value));
+      return el("div",{class:"amb-item"+(on?" on":"")},el("button",{type:"button",class:"amb-btn","aria-pressed":String(on),onclick:()=>ambToggle(a.id)},el("span",{class:"amb-dot"}),a.name+(n&&n.pending?" …":"")),on?vol:null);})));}
+/* Carte admin : statistiques d'écoute des ambiances, tous comptes confondus. */
+function renderAmbStats(){const box=$("amb-stats");if(!box)return;box.hidden=!FB.admin;if(!FB.admin)return;
+  const m=allMembers();const rows=AMBS.map(a=>{let users=0,plays=0,sec=0;for(const d of Object.values(m)){const s=d&&d.ambStats&&d.ambStats[a.id];if(s&&(s.s>0||s.n>0)){users++;plays+=s.n||0;sec+=s.s||0;}}return{a,users,plays,sec};}).sort((x,y)=>y.sec-x.sec);
+  box.replaceChildren(el("div",{class:"card-head"},el("h3",{text:"Statistiques des ambiances"}),el("span",{class:"muted small",text:"visible par toi seul"})),
+    el("div",{class:"rows"},...rows.map((r,i)=>el("div",{class:"row",style:"grid-template-columns:24px minmax(0,1fr) auto"},el("span",{class:"rank",text:String(i+1)}),
+      el("div",{class:"who"},el("b",{text:r.a.name}),el("small",{text:plural(r.users,"utilisateur")+" · "+plural(r.plays,"lancement")+(r.users?" · moy. "+fmtMin(r.sec/60/r.users)+" / utilisateur":"")})),
+      el("div",{class:"metric"},fmtMin(r.sec/60),el("small",{text:"d'écoute"}))))),
+    el("p",{class:"muted small",style:"margin:0",text:"Temps réellement écouté, compté toutes les 30 s. Les ambiances peu écoutées pourront être remplacées."}));}
 
 /* ---------- bulle de support ----------
    Remplace l'onglet Retours : chacun crée des tickets privés (bug, idée, autre) et voit la réponse de l'admin ;
@@ -1912,7 +1986,7 @@ async function boot(){
   const use=n=>(window.claude&&typeof window.claude.use==="function")?Promise.resolve(window.claude.use(n)).catch(()=>null):Promise.resolve(null);
   const [db,user,fb]=await Promise.all([use("db"),use("user"),use("feedback")]);
   S.user=user;if(window.__pousseToast){toast(window.__pousseToast);window.__pousseToast=null;}
-  if(fb){FB.api=fb;fb.isAdmin().then(a=>{FB.admin=a;renderFeedback();renderSupport();});fb.onChange(loadFeedback);loadFeedback();}
+  if(fb){FB.api=fb;fb.isAdmin().then(a=>{FB.admin=a;renderFeedback();renderSupport();renderAmbStats();});fb.onChange(loadFeedback);loadFeedback();}
   renderFeedback();
   if(user){try{S.me=await user.me();S.myId=S.me.id;}catch(e){}}
   if(db&&S.myId){
