@@ -88,6 +88,24 @@ button:disabled{cursor:not-allowed}
 .club-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:20px;align-items:start}
 .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
 @media (max-width:860px){.grid,.club-grid,.two{grid-template-columns:minmax(0,1fr)}}
+/* musique : sous le minuteur ; sur grand écran, dans la marge de gauche */
+.grid>.music-card{grid-column:1}
+.grid>aside.side{grid-row:span 2}
+@media (max-width:860px){.grid>aside.side{grid-row:auto}}
+@media (min-width:1700px){.music-card{position:fixed;top:96px;left:calc(50vw - 550px - 310px);width:290px;max-height:calc(100vh - 120px);overflow:auto;z-index:2}}
+.music-player:empty{display:none}
+.music-player iframe{width:100%;border:0;border-radius:12px;display:block}
+.music-form{display:flex;gap:8px;flex-wrap:wrap}
+.music-form input{flex:1 1 200px;min-width:0;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--ink);font:inherit;font-size:.88rem}
+.music-row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.music-ctrls{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}
+.mb-group{display:flex;align-items:center;gap:6px}
+.mbtn{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.mbtn.main{width:44px;height:44px;background:var(--leaf);border-color:var(--leaf);color:var(--bg)}
+.mbtn:disabled{opacity:.4;cursor:not-allowed}
+.mvol{display:flex;align-items:center;gap:6px;color:var(--muted);flex:1 1 110px;min-width:110px}
+.mvol input{flex:1;accent-color:var(--leaf)}
+.mvol input:disabled{opacity:.4}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
 .side{display:flex;flex-direction:column;gap:20px;min-width:0}
 .card-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
@@ -296,7 +314,6 @@ button:disabled{cursor:not-allowed}
       <a href="#club" data-v="club">Communauté</a>
       <a href="#groupes" data-v="groupes">Guildes</a>
       <a href="#boutique" data-v="boutique">Boutique</a>
-      <a href="#retours" data-v="retours">Retours</a>
       <a href="#profil" data-v="profil">Profil</a>
       <a href="#reglages" data-v="reglages" class="gear" aria-label="Réglages" title="Réglages"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h8M16 6h4M4 12h2M10 12h10M4 18h11M19 18h1"/><circle cx="14" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg></a>
     </nav>
@@ -350,6 +367,11 @@ button:disabled{cursor:not-allowed}
           <div class="card-head"><h3>Jardin du jour</h3><span class="muted num small" id="today-sum"></span></div>
           <div class="garden" id="garden"></div>
         </div>
+      </div>
+      <div class="card music-card" id="music">
+        <div class="card-head"><h3>Ma musique</h3><span class="muted small" id="music-state"></span></div>
+        <div id="music-ctl"></div>
+        <div class="music-player" id="music-player"></div>
       </div>
 
       <aside class="side">
@@ -631,6 +653,26 @@ button:disabled{cursor:not-allowed}
 .account-btn{display:none}
 
 /* Communauté, invitations, accueil */
+/* bulle de support */
+.sup-btn{position:fixed;right:20px;bottom:20px;width:54px;height:54px;border-radius:50%;border:0;background:var(--leaf);color:var(--bg);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:40;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+.sup-btn:hover{filter:brightness(1.08)}
+.sup-dot{position:absolute;top:4px;right:4px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--tomato);color:#fff;font-size:.7rem;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px var(--bg)}
+.sup-dot[hidden]{display:none}
+.sup-panel{position:fixed;right:20px;bottom:86px;width:380px;max-width:calc(100vw - 32px);max-height:min(640px,calc(100vh - 110px));overflow:auto;z-index:41;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.45);padding:16px;display:flex;flex-direction:column;gap:12px}
+.sup-panel[hidden]{display:none}
+@media (max-width:520px){.sup-btn{right:14px;bottom:14px}.sup-panel{right:16px;left:16px;width:auto;bottom:78px}}
+.sup-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.sup-head h3{margin:0}
+.sup-x{border:0;background:none;color:var(--muted);font-size:22px;line-height:1;cursor:pointer;padding:0 4px}
+.sup-panel textarea{width:100%;min-height:110px;resize:vertical;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--ink);font:inherit;font-size:.9rem;box-sizing:border-box}
+.sup-item{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;background:var(--surface-2)}
+.sup-item .meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:.75rem;color:var(--muted)}
+.sup-item .msg{white-space:pre-wrap;font-size:.88rem;overflow-wrap:anywhere}
+.sup-reply{border-left:3px solid var(--leaf);padding:4px 0 4px 10px;font-size:.85rem;white-space:pre-wrap;overflow-wrap:anywhere}
+.sup-reply b{color:var(--leaf)}
+.sup-admin{display:flex;flex-direction:column;gap:6px}
+.sup-admin select{padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font:inherit;font-size:.82rem}
+.sup-admin textarea{min-height:60px}
 /* guildes */
 .guild-chips{display:flex;gap:8px;flex-wrap:wrap}
 #quick-room[hidden]{display:none}
@@ -831,7 +873,9 @@ function checkTrophy(){
   myDoc.trophies=[...myDoc.trophies,{wk:lk,rank:i+1,min:rows[i].min}].slice(-60);checkBadges(true);persist();
   toast((i===0?"Champion·ne":"Médaille n°"+(i+1))+" de la semaine dernière ! Un trophée rejoint ton profil.");
 }
-function afterData(){checkTrophy();checkBadges();}
+function afterData(){checkTrophy();checkBadges();
+  /* reprise du lien de musique gardé sur cet appareil avant qu'il soit enregistré sur le compte */
+  if(canCloud()&&!store.get("pousse.musicOnAccount",0)){if(!validSrc(myDoc.music)&&validSrc(cfg.music)){myDoc.music=validSrc(cfg.music);persist();}store.set("pousse.musicOnAccount",1);cfg.music=null;saveCfg();}}
 
 /* ---------- plant drawing ---------- */
 function bez(t,p0,p1,p2){const u=1-t;return[u*u*p0[0]+2*u*t*p1[0]+t*t*p2[0],u*u*p0[1]+2*u*t*p1[1]+t*t*p2[1]];}
@@ -858,7 +902,7 @@ function miniPlant(ok,title){const s=svg(`<svg viewBox="20 30 160 185" role="img
 
 /* ---------- timer ---------- */
 const GRACE=10000;
-let cfg=Object.assign({focus:25,strict:true,cat:"travail",breakMin:5,autoBreak:true},store.get("pousse.cfg",{}));
+let cfg=Object.assign({focus:25,strict:true,cat:"travail",breakMin:5,autoBreak:true,music:null,musicAuto:true,musicRoom:"room"},store.get("pousse.cfg",{}));
 /* Durées réglables à la minute : focus de 5 à 90 min, pause de 1 à 45 min. */
 const LIM={focus:[5,90],break:[1,45]};
 function clampMin(k,v){const [a,b]=LIM[k];v=Math.round(+v);return Number.isFinite(v)?Math.min(b,Math.max(a,v)):(k==="focus"?25:5);}
@@ -882,10 +926,10 @@ function markFocusing(){whenReady(()=>{myDoc.focusUntil=T.endAt;myDoc.focusLabel
 function startFocus(){
   ensureAudio();const now=Date.now();const min=cfg.focus;
   T={phase:"focus",startAt:now,endAt:now+min*60000,min,label:$("task-label").value.trim().slice(0,80),cat:cfg.cat,beat:now,hiddenAt:0};
-  saveT();wake(true);markFocusing();renderTimer(true);
+  saveT();wake(true);markFocusing();renderTimer(true);musicAuto(true);
 }
 function participants(){const r=T.gid&&S.groups[T.gid];return r?memberIdsOf(r):[];}
-function completeFocus(){
+function completeFocus(){musicAuto(false);
   const gid=T.gid,end=T.endAt;const n=gid?Math.max(1,T.n||participants().length):1;
   const s=recordSession({ok:true,min:T.min,label:T.label,cat:T.cat,gid,gname:T.gname,n});
   const rb=gid?T.breakMin:undefined;/* une session de groupe a sa propre durée de pause */
@@ -894,13 +938,13 @@ function completeFocus(){
   if(gid)closeRoom(gid);
 }
 /* Passage salle d'attente → focus : on fige le nombre de participants (personne ne peut plus entrer). */
-function lobbyToFocus(now){const r=S.groups[T.gid];if(r){T.n=memberIdsOf(r).length;T.gname=r.name||"";}T.phase="focus";T.beat=now;T.hiddenAt=0;}
-function wither(reason){const m=Math.min(T.min,(Date.now()-T.startAt)/60000);const s=recordSession({ok:false,min:m,label:T.label,cat:T.cat,gid:T.gid,gname:T.gname});T={phase:"withered",last:s,reason};saveT();wake(false);renderTimer(true);}
+function lobbyToFocus(now){const r=S.groups[T.gid];if(r){T.n=memberIdsOf(r).length;T.gname=r.name||"";}T.phase="focus";T.beat=now;T.hiddenAt=0;musicAuto(true);}
+function wither(reason){const m=Math.min(T.min,(Date.now()-T.startAt)/60000);const s=recordSession({ok:false,min:m,label:T.label,cat:T.cat,gid:T.gid,gname:T.gname});musicAuto(false);T={phase:"withered",last:s,reason};saveT();wake(false);renderTimer(true);}
 /* Pause après un pomodoro : 2, 5 ou 10 min selon les réglages (5 par défaut), quelle que soit la durée du focus. */
 const breakMin=()=>cfg.breakMin==null?5:clampMin("break",cfg.breakMin);
 /* from = fin du pomodoro (si la page était fermée, la pause part de là ; déjà écoulée, on ne la lance pas). */
 function startBreak(from,mm){ensureAudio();const now=Date.now(),m=mm?clampMin("break",mm):breakMin();const start=typeof from==="number"&&from<now?from:now;if(start+m*60000<=now){renderTimer(true);return;}T={phase:"break",startAt:start,endAt:start+m*60000,min:m,last:T.last};saveT();renderTimer(true);}
-function toIdle(){T={phase:"idle"};saveT();renderTimer(true);}
+function toIdle(){if(busy())musicAuto(false);T={phase:"idle"};saveT();renderTimer(true);}
 
 function tick(){
   const now=Date.now();
@@ -1033,6 +1077,7 @@ async function createRoom(guildId){
   ensureAudio();const id=rid(),now=Date.now();const label=$("task-label").value.trim().slice(0,80);
   const r={name:gu?gu.name:"Session de "+((S.me&&S.me.name)||"groupe"),by:S.myId,at:now,members:{[S.myId]:now},invite:inviteCode(),min:cfg.focus,breakMin:breakMin(),label,cat:cfg.cat};
   if(gu)r.guild=guildId;
+  const ms=ownMusic();if(ms)r.music=ms;/* la playlist du chef est proposée à la salle */
   S.groups=Object.assign({},S.groups,{[id]:r});
   if(!(await dbSet("groups/"+id,r))){const g=Object.assign({},S.groups);delete g[id];S.groups=g;return;}
   T={phase:"lobby",gid:id,min:r.min,label,cat:r.cat,since:now};saveT();
@@ -1529,7 +1574,7 @@ function renderProfile(){
   box.replaceChildren(head,recap,two,cats,badges);
 }
 function renderData(){
-  if(view==="boutique")renderShop();if(view==="reglages")renderInventory();updateGuildDot();renderMeChip();renderGoal();renderGarden();renderLive();renderGSessions();renderChallenge($("challenge-a"));renderChallenge($("challenge-b"));
+  syncMusic();renderMusicCtl();if(view==="boutique")renderShop();if(view==="reglages")renderInventory();updateGuildDot();renderMeChip();renderGoal();renderGarden();renderLive();renderGSessions();renderChallenge($("challenge-a"));renderChallenge($("challenge-b"));
   renderBoard($("mini-board"),"week",Object.keys(allMembers()),5);renderScope();if(S.boardWho==="guilds")renderGuildBoard($("board"),S.boardMode);else renderBoard($("board"),S.boardMode,scopeIds());renderPodium();
   $("bm-week").setAttribute("aria-pressed",String(S.boardMode==="week"));$("bm-all").setAttribute("aria-pressed",String(S.boardMode==="all"));
   renderFeed();if(view==="groupes")renderGroups();if(view==="profil")renderProfile();renderWith();
@@ -1545,7 +1590,7 @@ const FB_HINT={bug:"Qu'est-ce que tu faisais, et qu'est-ce qui s'est passé ? (e
   remarque:"Ce qui te plaît, ce qui te gêne, ce qui n'est pas clair…"};
 const FB={api:null,items:[],admin:false,kind:"bug",filter:"all",sort:"recent",loaded:false,error:"",busy:false,confirmDel:null};
 let prevView="focus";
-async function loadFeedback(){if(!FB.api)return;try{FB.items=await FB.api.list();FB.error="";}catch(e){FB.error=e&&e.code==="PGRST205"||/feedback/.test(e&&e.message||"")?"setup":"load";}FB.loaded=true;renderFeedback();}
+async function loadFeedback(){if(!FB.api)return;try{FB.items=await FB.api.list();FB.error="";}catch(e){FB.error=e&&e.code==="PGRST205"||/feedback/.test(e&&e.message||"")?"setup":"load";}FB.loaded=true;renderFeedback();renderSupport();}
 function fbContext(){return{version:APP_VERSION,vue:prevView,ecran:innerWidth+"x"+innerHeight,navigateur:navigator.userAgent,minuteur:T.phase,niveau:level(myDoc.xp).L,pomodoros:myDoc.totalPomos};}
 async function sendFeedback(){
   const msg=$("fb-msg").value.trim();
@@ -1639,7 +1684,8 @@ document.querySelectorAll(".preset[data-break]").forEach(b=>b.addEventListener("
 $("set-account").addEventListener("click",()=>{const acc=document.querySelector(".account-btn");if(acc)acc.click();});
 
 let view="focus";const VIEWS=["focus","club","groupes","profil","boutique","retours","reglages"];
-function route(){const h=(location.hash||"").slice(1);if(view!=="retours")prevView=view;view=VIEWS.includes(h)?h:"focus";if(view==="retours")renderFeedback();if(view==="reglages")renderSettings();
+function route(){if((location.hash||"")==="#retours"){history.replaceState(null,"",location.pathname+location.search+"#focus");setTimeout(()=>openSupport(),0);}/* l'onglet Retours est devenu la bulle de support */
+  const h=(location.hash||"").slice(1);if(view!=="retours")prevView=view;view=VIEWS.includes(h)?h:"focus";if(view==="retours")renderFeedback();if(view==="reglages")renderSettings();
   for(const v of VIEWS)$("v-"+v).classList.toggle("on",v===view);
   document.querySelectorAll(".nav a").forEach(a=>a.setAttribute("aria-current",a.dataset.v===view?"page":"false"));
   if(view==="profil")renderProfile();if(view==="boutique")renderShop();if(view==="groupes")renderGroups();if(view==="club")renderData();}
@@ -1659,6 +1705,146 @@ $("bm-week").addEventListener("click",()=>{S.boardMode="week";renderData();});
 $("bm-all").addEventListener("click",()=>{S.boardMode="all";renderData();});
 $("task-label").value=store.get("pousse.label","");
 $("task-label").addEventListener("input",e=>store.set("pousse.label",e.target.value));
+
+/* ---------- musique ----------
+   Lien Spotify ou YouTube collé par l'utilisateur, joué dans un lecteur intégré (pas de compte à relier).
+   Démarre avec le pomodoro et s'arrête à la fin (réglable). En salle de groupe, la playlist du chef est proposée à tous. */
+function parseMusic(u){u=String(u||"").trim();let m;
+  if((m=u.match(/^spotify:(playlist|album|track|artist|episode|show):([A-Za-z0-9]{10,40})$/))||(m=u.match(/open\.spotify\.com\/(?:intl-[a-z-]+\/)?(?:embed\/)?(playlist|album|track|artist|episode|show)\/([A-Za-z0-9]{10,40})/)))return{k:"sp",type:m[1],id:m[2]};
+  try{const x=new URL(u);const h=x.hostname.replace(/^(www|m|music)\./,"");
+    if(h==="youtu.be"){const v=x.pathname.slice(1);if(/^[A-Za-z0-9_-]{11}$/.test(v))return{k:"yt",v,list:/^[A-Za-z0-9_-]{10,64}$/.test(x.searchParams.get("list")||"")?x.searchParams.get("list"):""};}
+    if(h==="youtube.com"){const list=x.searchParams.get("list")||"",v=x.searchParams.get("v")||((x.pathname.match(/^\/(?:live|embed)\/([A-Za-z0-9_-]{11})/)||[])[1])||"";
+      const okL=/^[A-Za-z0-9_-]{10,64}$/.test(list),okV=/^[A-Za-z0-9_-]{11}$/.test(v);if(okL||okV)return{k:"yt",v:okV?v:"",list:okL?list:""};}
+  }catch(e){}return null;}
+/* Revalide une source (aussi celle reçue d'une salle) : uniquement des identifiants, jamais d'URL brute. */
+function validSrc(s){if(!s||typeof s!=="object")return null;
+  if(s.k==="sp"&&/^(playlist|album|track|artist|episode|show)$/.test(s.type)&&/^[A-Za-z0-9]{10,40}$/.test(s.id))return{k:"sp",type:s.type,id:s.id};
+  if(s.k==="yt"&&(/^[A-Za-z0-9_-]{11}$/.test(s.v||"")||/^[A-Za-z0-9_-]{10,64}$/.test(s.list||"")))return{k:"yt",v:/^[A-Za-z0-9_-]{11}$/.test(s.v||"")?s.v:"",list:/^[A-Za-z0-9_-]{10,64}$/.test(s.list||"")?s.list:""};
+  return null;}
+const srcKey=s=>s?[s.k,s.type||"",s.id||"",s.v||"",s.list||""].join(":"):"";
+const srcLabel=s=>!s?"":s.k==="sp"?({playlist:"Playlist",album:"Album",track:"Titre",artist:"Artiste",episode:"Épisode",show:"Podcast"}[s.type]||"Lien")+" Spotify":s.list?"Playlist YouTube":"Vidéo YouTube";
+const MU={key:"",sp:null,yt:null,want:false,spStarted:false,editing:false,playing:false};
+function loadScript(src){return new Promise((ok,ko)=>{const s=document.createElement("script");s.src=src;s.async=true;s.onload=ok;s.onerror=ko;document.head.append(s);});}
+const spApi=()=>MU.spP||(MU.spP=new Promise(res=>{window.onSpotifyIframeApiReady=res;loadScript("https://open.spotify.com/embed/iframe-api/v1").catch(()=>{});}));
+const ytApi=()=>MU.ytP||(MU.ytP=new Promise(res=>{window.onYouTubeIframeAPIReady=()=>res(window.YT);loadScript("https://www.youtube.com/iframe_api").catch(()=>{});}));
+function roomMusic(){const r=T.gid&&busy()&&S.groups[T.gid];return r&&r.by!==S.myId?validSrc(r.music):null;}
+/* Lien enregistré sur le compte (suit la personne sur tous ses appareils), réglage de l'appareil en secours. */
+function ownMusic(){return validSrc(myDoc&&myDoc.music)||(store.get("pousse.musicOnAccount",0)?null:validSrc(cfg.music));}
+function currentSrc(){const rm=roomMusic();if(rm){if(cfg.musicRoom==="room")return rm;if(cfg.musicRoom==="off")return null;}return ownMusic();}
+/* État réel du lecteur (lecture ou pause), pour afficher le bon bouton. */
+function setPlaying(p){p=!!p;if(p===MU.playing)return;MU.playing=p;renderMusicCtl();}
+const musicVol=()=>cfg.musicVol==null?70:Math.max(0,Math.min(100,+cfg.musicVol||0));
+function mountPlayer(src){const key=srcKey(src);if(key===MU.key)return;MU.key=key;MU.sp=null;MU.yt=null;MU.spStarted=false;MU.playing=false;
+  const box=$("music-player");if(!box)return;box.replaceChildren();if(!src)return;const host=el("div");box.append(host);
+  if(src.k==="sp")spApi().then(api=>{if(MU.key!==key)return;api.createController(host,{uri:"spotify:"+src.type+":"+src.id,width:"100%",height:src.type==="track"||src.type==="episode"?152:352},c=>{if(MU.key!==key)return;MU.sp=c;
+    c.addListener("playback_update",e=>{const d=e&&e.data;if(d){if(!d.isPaused)MU.spStarted=true;setPlaying(!d.isPaused);}});
+    if(MU.want){c.play();MU.spStarted=true;}renderMusicCtl();});});
+  else ytApi().then(YT=>{if(MU.key!==key||!YT)return;MU.yt=new YT.Player(host,{width:"100%",height:"200",videoId:src.v||undefined,
+    playerVars:Object.assign({playsinline:1,rel:0},src.list?{listType:"playlist",list:src.list}:{}),
+    events:{onReady:e=>{e.target.setVolume(musicVol());if(MU.want)e.target.playVideo();renderMusicCtl();},onStateChange:e=>setPlaying(e.data===1||e.data===3)}});});}
+/* Boutons du lecteur : lecture/pause et volume partout ; précédent/suivant sur une playlist YouTube.
+   Le lecteur Spotify intégré ne permet pas de changer de morceau ni de volume depuis la page : « précédent » revient au début du titre. */
+function musicToggle(){if(MU.playing)musicPause();else musicPlay();}
+function musicPrev(){if(MU.yt&&MU.yt.previousVideo){const s=validSrc(currentSrc());if(s&&s.list)MU.yt.previousVideo();else MU.yt.seekTo(0,true);}else if(MU.sp)MU.sp.seek(0);}
+function musicNext(){if(MU.yt&&MU.yt.nextVideo)MU.yt.nextVideo();}
+function musicSetVol(v){cfg.musicVol=Math.max(0,Math.min(100,Math.round(v)));saveCfg();if(MU.yt&&MU.yt.setVolume){MU.yt.setVolume(cfg.musicVol);if(cfg.musicVol>0&&MU.yt.unMute)MU.yt.unMute();}}
+const ICO={prev:'<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>',
+  next:'<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>',
+  play:'<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg>',
+  pause:'<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>',
+  vol:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>'};
+function musicControls(src){const sp=src.k==="sp",ytList=src.k==="yt"&&!!src.list,ready=!!(MU.sp||MU.yt);
+  const b=(ico,label,fn,dis,cls)=>{const x=el("button",{type:"button",class:"mbtn"+(cls?" "+cls:""),"aria-label":label,title:label,disabled:!ready||!!dis,onclick:fn});x.append(svg(ico));return x;};
+  const vol=el("input",{type:"range",min:"0",max:"100",step:"1","aria-label":"Volume",disabled:sp||!ready,title:sp?"Le volume du lecteur Spotify se règle avec celui de ton appareil":"Volume"});vol.value=String(sp?100:musicVol());
+  vol.addEventListener("input",()=>musicSetVol(+vol.value));
+  return el("div",{class:"music-ctrls"},
+    el("div",{class:"mb-group"},b(ICO.prev,sp?"Revenir au début du titre":ytList?"Précédent":"Revenir au début",musicPrev),
+      b(MU.playing?ICO.pause:ICO.play,MU.playing?"Pause":"Lecture",musicToggle,false,"main"),
+      b(ICO.next,sp?"Suivant : utilise la flèche du lecteur Spotify":"Suivant",musicNext,!ytList)),
+    el("label",{class:"mvol"},svg(ICO.vol),vol),
+    sp?el("p",{class:"muted small",style:"margin:0;width:100%",text:"Spotify : morceaux en entier seulement si tu es connecté sur open.spotify.com dans ce navigateur (sinon extraits de 30 s). Pour changer de morceau, utilise les flèches du lecteur ; le volume se règle sur ton appareil."}):null);}
+function musicPlay(){MU.want=true;syncMusic();if(MU.sp){if(MU.spStarted)MU.sp.resume();else{MU.sp.play();MU.spStarted=true;}}if(MU.yt&&MU.yt.playVideo)MU.yt.playVideo();renderMusicCtl();}
+function musicPause(){MU.want=false;if(MU.sp)MU.sp.pause();if(MU.yt&&MU.yt.pauseVideo)MU.yt.pauseVideo();renderMusicCtl();}
+/* Appelé au début (true) et à la fin (false) d'un focus : seulement si « Lancer avec le pomodoro » est activé. */
+function musicAuto(on){if(cfg.musicAuto===false)return;try{on?musicPlay():musicPause();}catch(e){}}
+function syncMusic(){try{mountPlayer(currentSrc());}catch(e){}}
+function saveMusic(raw){const s=parseMusic(raw);if(raw&&!s){toast("Lien non reconnu : colle un lien de playlist Spotify ou YouTube.");return false;}
+  cfg.music=null;saveCfg();MU.editing=false;whenReady(()=>{myDoc.music=s||null;store.set("pousse.musicOnAccount",1);persist();syncMusic();renderMusicCtl();});
+  const r=myRoom();if(r&&isChef(r)&&!T.startAt)dbUpdate("groups/"+T.gid,{music:s||null});
+  syncMusic();renderMusicCtl();toast(s?srcLabel(s)+" enregistrée.":"Musique retirée.");return true;}
+function renderMusicCtl(){const box=$("music-ctl");if(!box)return;
+  const a=document.activeElement;if(a&&a.closest&&a.closest("#music-ctl")&&a.tagName==="INPUT"&&(a.type==="text"||a.type==="range"))return;
+  const own=ownMusic(),rm=roomMusic(),parts=[];
+  $("music-state").textContent=MU.playing&&currentSrc()?(busy()?"en lecture avec ton focus":"en lecture"):"";
+  if(rm)parts.push(el("div",{class:"seg",role:"group","aria-label":"Musique en session de groupe"},...[["room","Musique de la salle"],["mine","La mienne"],["off","Aucune"]].map(([k,t])=>el("button",{"aria-pressed":String((cfg.musicRoom||"room")===k),onclick:()=>{cfg.musicRoom=k;saveCfg();syncMusic();if(MU.want)musicPlay();renderMusicCtl();},text:t}))),
+    el("p",{class:"muted small",style:"margin:0",text:"Le chef de salle a choisi une "+srcLabel(rm).toLowerCase()+" pour la session."+(rm.k==="sp"&&(cfg.musicRoom||"room")==="room"?" Connecte-toi sur open.spotify.com dans ce navigateur pour l'écouter en entier (sinon : extraits de 30 s).":"")}));
+  if(!own||MU.editing){const inp=el("input",{type:"text",placeholder:"Lien d'une playlist Spotify ou YouTube","aria-label":"Lien de ta playlist",value:own&&MU.editing?"":""});
+    const go=()=>saveMusic(inp.value);inp.addEventListener("keydown",e=>{if(e.key==="Enter")go();});
+    parts.push(el("div",{class:"music-form"},inp,el("button",{class:"btn sm green",onclick:go,text:"Enregistrer"}),MU.editing?el("button",{class:"btn sm",onclick:()=>{MU.editing=false;renderMusicCtl();},text:"Annuler"}):null),
+      el("p",{class:"muted small",style:"margin:0",text:"Spotify : morceaux en entier si tu es connecté à Spotify dans ce navigateur, sinon extraits de 30 s. YouTube : tout, sans compte."}));}
+  else parts.push(el("div",{class:"music-row"},el("span",{class:"small",text:"Ta musique : "+srcLabel(own)}),
+    el("span",null,el("button",{class:"link small",onclick:()=>{MU.editing=true;renderMusicCtl();},text:"Changer"})," · ",el("button",{class:"link small",onclick:()=>saveMusic(""),text:"Retirer"}))));
+  const cur=validSrc(currentSrc());if(cur)parts.push(musicControls(cur));
+  const cb=el("input",{type:"checkbox"});cb.checked=cfg.musicAuto!==false;cb.addEventListener("change",()=>{cfg.musicAuto=cb.checked;saveCfg();});
+  parts.push(el("label",{class:"small",style:"display:flex;align-items:center;gap:8px"},cb,"Lancer la musique avec le pomodoro, l'arrêter à la fin"));
+  box.replaceChildren(...parts);}
+
+/* ---------- bulle de support ----------
+   Remplace l'onglet Retours : chacun crée des tickets privés (bug, idée, autre) et voit la réponse de l'admin ;
+   l'admin voit tous les tickets, change leur statut, répond et supprime. Tables feedback (voir supabase-support.sql). */
+const SUP={open:false,tab:"new",kind:"bug",filter:"open",busy:false,draft:""};
+const supSeen=()=>store.get("pousse.supSeen",{});
+const fbTs=it=>Date.parse(it.updated_at)||it.ts||0;
+function supUnread(){if(!FB.api)return 0;if(FB.admin)return FB.items.filter(it=>it.status==="nouveau").length;
+  const seen=supSeen();return FB.items.filter(it=>it.user_id===S.myId&&it.reply&&seen[it.id]!==fbTs(it)).length;}
+function markSupSeen(){const seen=supSeen();FB.items.filter(it=>it.user_id===S.myId&&it.reply).forEach(it=>{seen[it.id]=fbTs(it);});store.set("pousse.supSeen",seen);}
+function openSupport(tab){SUP.open=true;if(tab)SUP.tab=tab;renderSupport(true);setTimeout(()=>{const t=document.querySelector("#sup-panel textarea");if(t&&SUP.tab==="new")t.focus();},50);}
+function closeSupport(){SUP.open=false;renderSupport(true);}
+async function sendTicket(){const msg=SUP.draft.trim();if(msg.length<3){toast("Écris au moins quelques mots.");return;}if(!FB.api||SUP.busy)return;
+  SUP.busy=true;renderSupport();
+  try{await FB.api.add({kind:SUP.kind,message:msg.slice(0,2000),context:{view,w:innerWidth,h:innerHeight,ua:navigator.userAgent.slice(0,180),at:new Date().toISOString()}});
+    SUP.draft="";SUP.tab="mine";toast("Ticket envoyé, merci ! Tu verras la réponse ici.");await loadFeedback();}
+  catch(e){toast("Envoi impossible pour le moment, réessaie dans un instant.");}
+  SUP.busy=false;renderSupport(true);}
+function supItem(it){const mine=it.user_id===S.myId;
+  const meta=el("div",{class:"meta"},el("span",{class:"tag k-"+it.kind,text:FB_KIND[it.kind]||it.kind}),el("span",{class:"tag s-"+it.status,text:FB_STATUS[it.status]||it.status}),
+    FB.admin&&!mine?el("b",{text:it.pseudo||"Membre"}):null,el("span",{text:ago(it.ts)}));
+  const kids=[meta,el("div",{class:"msg",text:it.message})];
+  if(FB.admin){const c=it.context||{};kids.push(el("div",{class:"muted small",text:[c.view?"onglet "+c.view:"",c.w?c.w+"×"+c.h:"",/Mobile|Android|iPhone/.test(c.ua||"")?"mobile":c.ua?"ordinateur":""].filter(Boolean).join(" · ")}));
+    const sel=el("select",{"aria-label":"Statut"},...Object.entries(FB_STATUS).map(([k,t])=>{const o=el("option",{value:k,text:t});if(k===it.status)o.selected=true;return o;}));
+    const rep=el("textarea",{placeholder:"Ta réponse (visible par l'auteur du ticket)","aria-label":"Réponse",maxlength:"2000"});rep.value=it.reply||"";
+    kids.push(el("div",{class:"sup-admin"},sel,rep,el("div",{class:"actions",style:"margin:0;gap:6px;justify-content:flex-start"},
+      el("button",{class:"btn sm green",onclick:async()=>{try{await FB.api.setStatus(it.id,{status:sel.value,reply:rep.value.trim().slice(0,2000)});toast("Ticket mis à jour.");await loadFeedback();}catch(e){toast("Mise à jour impossible.");}},text:"Enregistrer"}),
+      el("button",{class:"btn sm",onclick:async()=>{if(!confirm("Supprimer ce ticket ?"))return;try{await FB.api.remove(it.id);await loadFeedback();}catch(e){toast("Suppression impossible.");}},text:"Supprimer"}))));}
+  else if(it.reply)kids.push(el("div",{class:"sup-reply"},el("b",{text:"Réponse : "}),it.reply));
+  return el("div",{class:"sup-item"},...kids);}
+/* les éléments de la bulle sont après le script : on l'affiche aussi une fois la page entièrement construite */
+document.addEventListener("DOMContentLoaded",()=>renderSupport());
+function renderSupport(force){const btn=$("sup-btn"),panel=$("sup-panel"),dot=$("sup-dot");if(!btn||!panel)return;
+  if(!btn.dataset.wired){btn.dataset.wired="1";btn.addEventListener("click",()=>SUP.open?closeSupport():openSupport());
+    document.addEventListener("keydown",e=>{if(e.key==="Escape"&&SUP.open)closeSupport();});}
+  btn.hidden=!FB.api;
+  const n=supUnread();dot.hidden=!n;dot.textContent=n>9?"9+":String(n);btn.setAttribute("aria-expanded",String(SUP.open));
+  panel.hidden=!SUP.open;if(!SUP.open)return;
+  const a=document.activeElement;if(!force&&a&&panel.contains(a)&&(a.tagName==="TEXTAREA"||a.tagName==="SELECT"))return;/* le temps réel ne doit pas effacer une saisie en cours ; un clic dans la bulle, si */
+  const mine=FB.items.filter(it=>it.user_id===S.myId);
+  const listItems=FB.admin?FB.items.filter(it=>SUP.filter==="all"||!["fait","refuse"].includes(it.status)):mine;
+  if(SUP.tab==="mine"&&!FB.admin)markSupSeen();
+  const head=el("div",{class:"sup-head"},el("div",null,el("h3",{text:"Support"}),el("p",{class:"muted small",style:"margin:2px 0 0",text:FB.admin?"Espace admin : tous les tickets des utilisateurs.":"Un bug, une idée, une question ? Écris-nous, la réponse arrive ici."})),
+    el("button",{class:"sup-x","aria-label":"Fermer",onclick:closeSupport,text:"×"}));
+  const tabs=el("div",{class:"seg",role:"group","aria-label":"Support"},
+    el("button",{"aria-pressed":String(SUP.tab==="new"),onclick:()=>{SUP.tab="new";renderSupport(true);},text:"Nouveau ticket"}),
+    el("button",{"aria-pressed":String(SUP.tab==="mine"),onclick:()=>{SUP.tab="mine";renderSupport(true);},text:(FB.admin?"Tickets":"Mes tickets")+" ("+(FB.admin?FB.items.filter(it=>!["fait","refuse"].includes(it.status)).length:mine.length)+")"}));
+  let body;
+  if(SUP.tab==="new"){const ta=el("textarea",{maxlength:"2000",placeholder:FB_HINT[SUP.kind]||"","aria-label":"Ton message"});ta.value=SUP.draft;ta.addEventListener("input",()=>{SUP.draft=ta.value;});
+    body=el("div",{class:"side",style:"gap:10px"},
+      el("div",{class:"seg",role:"group","aria-label":"Type de ticket"},...[["bug","Bug"],["idee","Idée"],["remarque","Autre"]].map(([k,t])=>el("button",{"aria-pressed":String(SUP.kind===k),onclick:()=>{SUP.kind=k;renderSupport(true);},text:t}))),
+      ta,el("button",{class:"btn green",disabled:SUP.busy,onclick:sendTicket,text:SUP.busy?"Envoi…":"Envoyer"}),
+      el("p",{class:"muted small",style:"margin:0",text:"Seul l'administrateur voit ton ticket. Ton pseudo, l'onglet ouvert et ton type d'appareil sont joints pour aider à comprendre."}));}
+  else body=el("div",{class:"side",style:"gap:8px"},
+    FB.admin?el("div",{class:"seg",role:"group","aria-label":"Filtre"},...[["open","À traiter"],["all","Tous"]].map(([k,t])=>el("button",{"aria-pressed":String(SUP.filter===k),onclick:()=>{SUP.filter=k;renderSupport(true);},text:t}))):null,
+    ...(listItems.length?listItems.map(supItem):[el("p",{class:"empty",text:FB.admin?"Aucun ticket à traiter.":"Tu n'as pas encore envoyé de ticket."})]));
+  panel.replaceChildren(head,tabs,body);}
 
 /* ---------- boutique ---------- */
 const owns=k=>!!(myDoc.owned&&myDoc.owned[k]);
@@ -1726,7 +1912,7 @@ async function boot(){
   const use=n=>(window.claude&&typeof window.claude.use==="function")?Promise.resolve(window.claude.use(n)).catch(()=>null):Promise.resolve(null);
   const [db,user,fb]=await Promise.all([use("db"),use("user"),use("feedback")]);
   S.user=user;if(window.__pousseToast){toast(window.__pousseToast);window.__pousseToast=null;}
-  if(fb){FB.api=fb;fb.isAdmin().then(a=>{FB.admin=a;renderFeedback();});fb.onChange(loadFeedback);loadFeedback();}
+  if(fb){FB.api=fb;fb.isAdmin().then(a=>{FB.admin=a;renderFeedback();renderSupport();});fb.onChange(loadFeedback);loadFeedback();}
   renderFeedback();
   if(user){try{S.me=await user.me();S.myId=S.me.id;}catch(e){}}
   if(db&&S.myId){
@@ -1764,5 +1950,7 @@ async function boot(){
 boot();
 })();
 </script>
+<button type="button" class="sup-btn" id="sup-btn" aria-label="Support : signaler un bug ou poser une question" aria-expanded="false"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-5A8 8 0 1 1 21 12z"/></svg><span class="sup-dot" id="sup-dot" hidden></span></button>
+<div class="sup-panel" id="sup-panel" role="dialog" aria-label="Support" hidden></div>
 </body>
 </html>
